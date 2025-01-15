@@ -2,6 +2,7 @@ from django.db import models
 
 class Player(models.Model):
     id = models.CharField(max_length=20, primary_key=True) 
+    position = models.CharField(max_length=100, default='0')
     firstName = models.CharField(max_length=100)
     lastName = models.CharField(max_length=100)
     weight = models.FloatField(default=0)
