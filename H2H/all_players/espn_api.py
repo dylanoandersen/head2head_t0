@@ -16,8 +16,7 @@ from .models import Player
 url = "https://sports.core.api.espn.com/v3/sports/football/nfl/athletes?limit=20000&active=true"
 
 #_____________________________________________________________________________________________________
-#_____________________________________________________________________________________________________
-#_____________________________________________________________________________________________________
+# update once a year
 
 
 def fetch_espn_data():
@@ -64,29 +63,29 @@ def fetch_player_positions():
             print(f"❌ Error {response.status_code}: {response.text}")
             return None
 
-x = fetch_player_positions()
 
 
-# def get_stats():
+# _____________________________________________________________________________________________________
+#update consistently
+def get_game_stats():
 
-#     for players in Player.objects.all():
-#         player_id = players.id
+    years = [2024, 2025]
+    for year in years:
+        url1 = f"https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?limit=1000&dates={year}"
 
-#         querystring = {"id":player_id}
-
-#         print("🔍 Sending request to ESPN API...")
-#         response = requests.get(url1, headers=headers, params=querystring)
+        response = requests.get(url1)
         
-#         print(f"🔄 Received response with status code: {response.status_code}")
+        print(f"🔄 Received response with status code: {response.status_code}")
 
-#         if response.status_code == 200:
-#             print("✅ Successfully fetched data! Parsing response...")
-#             stats = response.json()
+        if response.status_code == 200:
+            print("✅ Successfully fetched data! Parsing response... of GAME")
+            stats = response.json()
+            return stats
 
 
-#         else:
-#             print(f"❌ Error {response.status_code}: {response.text}")
-#             return None
+        else:
+            print(f"❌ Error {response.status_code}: {response.text}")
+            return None
 
 # data = get_stats()
 # if data:
