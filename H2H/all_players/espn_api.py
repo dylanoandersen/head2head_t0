@@ -11,7 +11,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "head2head.settings")
 import django
 django.setup()
 
-from .models import Player
+from .models import Player, Game, Player_Stats
 
 url = "https://sports.core.api.espn.com/v3/sports/football/nfl/athletes?limit=20000&active=true"
 
@@ -32,6 +32,10 @@ def fetch_espn_data():
     else:
         print(f"❌ Error {response.status_code}: {response.text}")
         return None
+
+
+# Add status to this function as well as the model of player - makemigration migrate 
+# if active status = active elif data.get('injuries', {}) or idk
 
 def fetch_player_positions():
 
@@ -87,6 +91,28 @@ def get_game_stats():
             print(f"❌ Error {response.status_code}: {response.text}")
             return None
 
+def get_stats():
+    for games in Game.objects.all():
+        EVENT_ID = games.id
+
+
+
+        response = requests.get(url1)
+        for Player in Player.objects.all():
+            ATHLETE_ID = Player.id
+            TEAM_ID = Player.team
+
+            url1 = f"https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/{EVENT_ID}/competitions/{EVENT_ID}/competitors/{TEAM_ID}/roster/{ATHLETE_ID}/statistics/0"
+
+            response = requests.get(url1)
+
+            if response.status_code == 200:
+                print("✅ Successfully fetched data! Parsing response... of STATZZZZZZZ")
+                stats = response.json()
+                return stats
+            else:
+                print(f"❌ Error {response.status_code}: {response.text}")
+                return None
 # data = get_stats()
 # if data:
 #      with open("api.txt", "w") as file:
