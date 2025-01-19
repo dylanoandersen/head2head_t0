@@ -37,35 +37,18 @@ def fetch_espn_data():
 # Add status to this function as well as the model of player - makemigration migrate 
 # if active status = active elif data.get('injuries', {}) or idk
 
-def fetch_player_positions():
+def fetch_player_positions(player_id):
 
-    for players in Player.objects.all():
-        player_id = players.id
+    url1 = f"https://site.web.api.espn.com/apis/common/v3/sports/football/nfl/athletes/{player_id}"
 
-        url1 = f"https://site.web.api.espn.com/apis/common/v3/sports/football/nfl/athletes/{player_id}"
+    response = requests.get(url1)
 
-        response = requests.get(url1)
-
-        if response.status_code == 200:
-            print("✅ Successfully fetched data! Parsing response...")
-            result = response.json()
-            athlete = result.get('athlete', {})
-            position = athlete.get('team', {})
-            team_name = position.get('name', {})
-            location = position.get('location', {})
-
-            Player.objects.update_or_create(
-                id=player_id,
-                defaults={
-                    'team': team_name,
-                    'location': location
-                }
-            )
-            print("player position added")
-
-        else:
-            print(f"❌ Error {response.status_code}: {response.text}")
-            return None
+    if response.status_code == 200:
+        print("✅ Successfully fetched data! Parsing response...")
+        return response.json()
+    else:
+        print(f"❌ Error {response.status_code}: {response.text}")
+        return None
 
 
 
@@ -92,12 +75,10 @@ def get_game_stats():
             return None
 
 def get_stats():
+
     for games in Game.objects.all():
         EVENT_ID = games.id
 
-
-
-        response = requests.get(url1)
         for Player in Player.objects.all():
             ATHLETE_ID = Player.id
             TEAM_ID = Player.team
@@ -113,6 +94,8 @@ def get_stats():
             else:
                 print(f"❌ Error {response.status_code}: {response.text}")
                 return None
+            
+x = fetch_player_positions()
 # data = get_stats()
 # if data:
 #      with open("api.txt", "w") as file:

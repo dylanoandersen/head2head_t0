@@ -2,6 +2,7 @@ from django.db import models
 
 class Player(models.Model):
     id = models.CharField(max_length=20, primary_key=True) 
+    status = models.CharField(max_length=100, default='0')
     position = models.CharField(max_length=100, default='0')
     firstName = models.CharField(max_length=100)
     lastName = models.CharField(max_length=100)
@@ -12,6 +13,9 @@ class Player(models.Model):
     age = models.IntegerField(default=0)
     experience = models.CharField(max_length=100, default='0')
     jersey = models.IntegerField(default=-1)
+
+    def __str__(self):
+        return f"{self.id}{self.firstName} {self.lastName}"
 
 class Player_Stats(models.Model):
     id = models.CharField(max_length=20, primary_key=True)
@@ -50,3 +54,6 @@ class Game(models.Model):
     away_team = models.CharField(max_length=100, default='0')
     home_score = models.IntegerField(default=0)
     away_score = models.IntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.id}{self.home_team} vs {self.away_team} {self.date}"
