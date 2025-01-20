@@ -1,11 +1,12 @@
 import os
 import django
 import requests
+import pytz
 from datetime import datetime
 
 # Ensure Django settings are loaded
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "head2head.settings")
-django.setup()  # Initializes Django
+#django.setup()  # Initializes Django
 
 from .espn_api import fetch_espn_data, get_game_stats, get_stats, fetch_player_positions
 from .models import Player, Game
@@ -70,6 +71,7 @@ def update_player_positions():
 
 # Run one a day in morning to check if there are any games today
 def live_update():
+    print("Running daily task... live_update")
     today_player_ids = []
     data,id = today_games()
     if data:
@@ -77,13 +79,14 @@ def live_update():
             obj = Player.objects.filter(team=team)
             for player in obj:
                 today_player_ids.append(player.id)
-        update_player_status1(today_player_ids,id)
     else:
         print('No games today')
+    return today_player_ids, id
+
 
 # Run once an hour if ^^^ today there are games
-def update_player_status1(today_player_ids, id):
-    for ids in id:
+def update_player_status1(today_player_ids, game_id):
+    for ids in game_id:
         print(ids)
         url = f'https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event={ids}'
         response = requests.get(url)
@@ -134,9 +137,8 @@ def update_player_status1(today_player_ids, id):
                 'current_play': text
             }
         )
-
-
-
+        obj=Game.objects.get(id=ids)
+        print(vars(obj))
 
     for id in today_player_ids:        
         result = fetch_player_positions(id)
@@ -157,28 +159,28 @@ def update_player_status1(today_player_ids, id):
 
 def today_games():
     teams_playing_today = []
-    teams_playeing_ids = []
+    teams_playing_ids = []
 
     for games in Game.objects.all():
-        date_string = games.date
+        date_string = games.date  
+        
+        utc_time = datetime.strptime(date_string, "%Y-%m-%dT%H:%MZ")
+        utc_time = utc_time.replace(tzinfo=pytz.UTC)
+        central_time = utc_time.astimezone(pytz.timezone("US/Central"))
 
-        date_from_string = datetime.strptime(date_string, "%Y-%m-%dT%H:%MZ").date()
+        today = datetime.now(pytz.timezone("US/Central")).date()
 
-        today = datetime.today().date()
-
-        # Compare dates
-        if date_from_string == today:
-            teams_playeing_ids.append(games.id)
+        if central_time.date() == today:
+            teams_playing_ids.append(games.id)
             teams_playing_today.append(games.home_team)
             teams_playing_today.append(games.away_team)
             
-    return teams_playing_today, teams_playeing_ids
+    return teams_playing_today, teams_playing_ids
 
 # Update daily
 def update_game_data():
     season_2024 = [2024, 2025]
     for year in season_2024:
-        print(year), 'the games this year'
         data = get_game_stats(year)
         events = data.get("events", [])
 
@@ -216,5 +218,3 @@ def update_game_data():
                 )
                 print("game data added")
 
-
-x = live_update()

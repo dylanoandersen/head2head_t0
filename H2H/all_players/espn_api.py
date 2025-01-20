@@ -12,7 +12,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "head2head.settings")
 
 # Initialize Django
 import django
-django.setup()
+#django.setup()
 
 from .models import Player, Game, Player_Stats
 
@@ -59,7 +59,6 @@ def fetch_player_positions(player_id):
 
 def get_game_stats(year):
 
-
     url1 = f"https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?limit=1000&dates={year}"
 
     response = requests.get(url1)
@@ -70,7 +69,6 @@ def get_game_stats(year):
         print("✅ Successfully fetched data! Parsing response... of GAME")
         stats = response.json()
         return stats
-
 
     else:
         print(f"❌ Error {response.status_code}: {response.text}")
