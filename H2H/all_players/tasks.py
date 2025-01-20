@@ -1,5 +1,6 @@
 import os
 import django
+import requests
 from datetime import datetime
 
 # Ensure Django settings are loaded
@@ -29,6 +30,7 @@ def update_espn_data():
                 'jersey': player.get('jersey', 0)
             }
         )
+
 def update_player_positions():
     for player in Player.objects.all():
         result = fetch_player_positions(player.id)
@@ -66,42 +68,76 @@ def update_player_positions():
 
 # update consistently 
 
-def today_games():
-    teams_playing_today = []
-
-    for games in Game:
-        date_string = games.date
-
-        date_from_string = datetime.strptime(date_string, "%Y-%m-%dT%H:%MZ").date()
-
-        today = datetime.today().date()
-
-        # Compare dates
-        if date_from_string == today:
-            print("The dates match!")
-
-        game = games.get("competitions", [])
-        for competition in game:
-            competitors = competition.get("competitors", [])
-            for competitor in competitors:
-                team = competitor.get("team", {}).get("displayName", "")
-                teams_playing_today.append(team)
-
-    return teams_playing_today
-
 # Run one a day in morning to check if there are any games today
-def update_player_status():
+def live_update():
     today_player_ids = []
-    data = today_games()
+    data,id = today_games()
     if data:
         for team in data:
             obj = Player.objects.filter(team=team)
             for player in obj:
                 today_player_ids.append(player.id)
-        update_player_status1(today_player_ids)
+        update_player_status1(today_player_ids,id)
+    else:
+        print('No games today')
 
 # Run once an hour if ^^^ today there are games
-def update_player_status1(today_player_ids):
+def update_player_status1(today_player_ids, id):
+    for ids in id:
+        print(ids)
+        url = f'https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event={ids}'
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            print("✅ Successfully fetched data! Parsing response...")
+        else:
+            print(f"❌ Error {response.status_code}: {response.text}")
+            return  # Exit the function if the API call fails
+
+        # Parse the JSON response
+        response_data = response.json()
+
+        # Check if 'current' exists in 'drivers', otherwise use 'previous'
+        drives = response_data.get('drives', {})
+        plays_list = drives.get('current', []) if 'current' in drives else drives.get('previous', [])
+
+        # Initialize default values for home_score, away_score, and text
+        home_score = 0
+        away_score = 0
+        text = "No plays available"
+
+        # Traverse plays_list from the end
+        for play_data in reversed(plays_list):
+            # Look for the 'plays' key
+            if 'plays' in play_data:
+                plays = play_data['plays']  # Extract the plays list
+                if plays:  # Ensure plays is not empty
+                    # Get the last play in the plays list
+                    last_play = plays[-1]
+                    # Extract desired values
+                    away_score = last_play.get('awayScore', 0)
+                    home_score = last_play.get('homeScore', 0)
+                    text = last_play.get('text', 'N/A')
+
+                    break
+                else:
+                    print("nothing in plays")
+            else:
+                print("nothing named plays")
+
+        # Update or create Game object
+        Game.objects.update_or_create(
+            id=ids,
+            defaults={
+                'home_score': home_score,
+                'away_score': away_score,
+                'current_play': text
+            }
+        )
+
+
+
+
     for id in today_player_ids:        
         result = fetch_player_positions(id)
         
@@ -119,49 +155,66 @@ def update_player_status1(today_player_ids):
         defaults={
             'status': status})
 
+def today_games():
+    teams_playing_today = []
+    teams_playeing_ids = []
 
+    for games in Game.objects.all():
+        date_string = games.date
 
+        date_from_string = datetime.strptime(date_string, "%Y-%m-%dT%H:%MZ").date()
 
+        today = datetime.today().date()
+
+        # Compare dates
+        if date_from_string == today:
+            teams_playeing_ids.append(games.id)
+            teams_playing_today.append(games.home_team)
+            teams_playing_today.append(games.away_team)
+            
+    return teams_playing_today, teams_playeing_ids
+
+# Update daily
 def update_game_data():
-    data = get_game_stats()
-    events = data.get("events", [])
+    season_2024 = [2024, 2025]
+    for year in season_2024:
+        print(year), 'the games this year'
+        data = get_game_stats(year)
+        events = data.get("events", [])
 
-    for event in events:
-        id = event.get("id","")
-        date = event.get("date", "")
+        for event in events:
+            id = event.get("id","")
+            date = event.get("date", "")
 
-        season_type = event.get("season", {}).get("slug", "")
+            season_type = event.get("season", {}).get("slug", "")
 
-        if event.get("season", {}).get("year", 0) != 2024:
-            continue
+            if event.get("season", {}).get("year", 0) != 2024:
+                continue
 
-        game = event.get("competitions", [])
+            game = event.get("competitions", [])
 
-        for competition in game:
-            competitors = competition.get("competitors", [])
-            for competitor in competitors:
-                if competitor.get("homeAway") == "home":
-                    home_team = competitor.get("team", {}).get("displayName", "")
-                    home_score = competitor.get("score", "")
-                else:
-                    away_team = competitor.get("team", {}).get("displayName", "")
-                    away_score = competitor.get("score", "")
+            for competition in game:
+                competitors = competition.get("competitors", [])
+                for competitor in competitors:
+                    if competitor.get("homeAway") == "home":
+                        home_team = competitor.get("team", {}).get("displayName", "")
+                        home_score = competitor.get("score", "")
+                    else:
+                        away_team = competitor.get("team", {}).get("displayName", "")
+                        away_score = competitor.get("score", "")
 
-            Game.objects.update_or_create(
-                id=id,
-                defaults={
-                    'season_type': season_type,
-                    'date': date,
-                    'home_team': home_team,
-                    'away_team': away_team,
-                    'home_score': home_score,
-                    'away_score': away_score
-                }
-            )
-            print("game data added")
-x = update_espn_data()
+                Game.objects.update_or_create(
+                    id=id,
+                    defaults={
+                        'season_type': season_type,
+                        'date': date,
+                        'home_team': home_team,
+                        'away_team': away_team,
+                        'home_score': home_score,
+                        'away_score': away_score
+                    }
+                )
+                print("game data added")
 
 
-def update_stats():
-
-    data = get_stats()
+x = live_update()

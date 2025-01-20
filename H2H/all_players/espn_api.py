@@ -1,6 +1,9 @@
 import sys
 import os
 import requests
+import json
+
+#team_id = [(1, 'Falcons'), (2, 'Bills'), (3, 'Bears'), (4, 'Bengals'), (5, 'Browns'), (6, 'Cowboys'), (7, 'Broncos'), (8, 'Lions'), (9, 'Packers'), (10, 'Texans'), (11, 'Colts'), (12, 'Jaguars'), (13, 'Chiefs'), (14, 'Rams'), (15, 'Chargers'), (16, 'Dolphins'), (17, 'Vikings'), (18, 'Patriots'), (19, 'Saints'), (20, 'Giants'), (21, 'Jets'), (22, 'Raiders'), (23, 'Eagles'), (24, 'Steelers'), (25, '49ers'), (26, 'Seahawks'), (27, 'Buccaneers'), (28, 'Titans'), (29, 'Cardinals'), (30, 'Washington')]
 
 # Add the project root directory to the PYTHONPATH
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -53,53 +56,50 @@ def fetch_player_positions(player_id):
 
 
 # _____________________________________________________________________________________________________
-#update consistently
-def get_game_stats():
 
-    years = [2024, 2025]
-    for year in years:
-        url1 = f"https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?limit=1000&dates={year}"
-
-        response = requests.get(url1)
-        
-        print(f"🔄 Received response with status code: {response.status_code}")
-
-        if response.status_code == 200:
-            print("✅ Successfully fetched data! Parsing response... of GAME")
-            stats = response.json()
-            return stats
+def get_game_stats(year):
 
 
-        else:
-            print(f"❌ Error {response.status_code}: {response.text}")
-            return None
+    url1 = f"https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?limit=1000&dates={year}"
+
+    response = requests.get(url1)
+    
+    print(f"🔄 Received response with status code: {response.status_code}")
+
+    if response.status_code == 200:
+        print("✅ Successfully fetched data! Parsing response... of GAME")
+        stats = response.json()
+        return stats
+
+
+    else:
+        print(f"❌ Error {response.status_code}: {response.text}")
+        return None
 
 def get_stats():
 
-    for games in Game.objects.all():
-        EVENT_ID = games.id
+    EVENT_ID = games.id
 
-        for Player in Player.objects.all():
-            ATHLETE_ID = Player.id
-            TEAM_ID = Player.team
+    ATHLETE_ID = Player.id
+    TEAM_ID = Player.team
 
-            url1 = f"https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/{EVENT_ID}/competitions/{EVENT_ID}/competitors/{TEAM_ID}/roster/{ATHLETE_ID}/statistics/0"
+    url1 = f"https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/{EVENT_ID}/competitions/{EVENT_ID}/competitors/{TEAM_ID}/roster/{ATHLETE_ID}/statistics/0"
 
-            response = requests.get(url1)
+    response = requests.get(url1)
 
-            if response.status_code == 200:
-                print("✅ Successfully fetched data! Parsing response... of STATZZZZZZZ")
-                stats = response.json()
-                return stats
-            else:
-                print(f"❌ Error {response.status_code}: {response.text}")
-                return None
+    if response.status_code == 200:
+        print("✅ Successfully fetched data! Parsing response... of STATZZZZZZZ")
+        stats = response.json()
+        return stats
+    else:
+        print(f"❌ Error {response.status_code}: {response.text}")
+        return None
             
-x = fetch_player_positions()
-# data = get_stats()
+
+# data = get_game_stats(2025)
 # if data:
 #      with open("api.txt", "w") as file:
-#         json.dump(data, file)  # Saves JSON data to file with indentation
+#         json.dump(data, file, indent=4)  # Saves JSON data to file with indentation
 
 
 

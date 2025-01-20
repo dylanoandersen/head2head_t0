@@ -1,7 +1,7 @@
 import requests
 import json
 
-url = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?limit=1000&dates=2024'
+url = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=401671937'
 
 
 

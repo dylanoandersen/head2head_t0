@@ -54,6 +54,7 @@ class Game(models.Model):
     away_team = models.CharField(max_length=100, default='0')
     home_score = models.IntegerField(default=0)
     away_score = models.IntegerField(default=0)
+    current_play = models.CharField(max_length=200, default='0')
 
     def __str__(self):
-        return f"{self.id}{self.home_team} vs {self.away_team} {self.date}"
+        return f"{self.id}{self.home_team} vs {self.away_team} {self.date} {self.current_play}"
