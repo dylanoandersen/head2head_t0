@@ -74,24 +74,24 @@ def get_game_stats(year):
         print(f"❌ Error {response.status_code}: {response.text}")
         return None
 
-def get_stats():
+# def get_stats():
 
-    EVENT_ID = games.id
+#     EVENT_ID = games.id
 
-    ATHLETE_ID = Player.id
-    TEAM_ID = Player.team
+#     ATHLETE_ID = Player.id
+#     TEAM_ID = Player.team
 
-    url1 = f"https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/{EVENT_ID}/competitions/{EVENT_ID}/competitors/{TEAM_ID}/roster/{ATHLETE_ID}/statistics/0"
+#     url1 = f"https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/{EVENT_ID}/competitions/{EVENT_ID}/competitors/{TEAM_ID}/roster/{ATHLETE_ID}/statistics/0"
 
-    response = requests.get(url1)
+#     response = requests.get(url1)
 
-    if response.status_code == 200:
-        print("✅ Successfully fetched data! Parsing response... of STATZZZZZZZ")
-        stats = response.json()
-        return stats
-    else:
-        print(f"❌ Error {response.status_code}: {response.text}")
-        return None
+#     if response.status_code == 200:
+#         print("✅ Successfully fetched data! Parsing response... of STATZZZZZZZ")
+#         stats = response.json()
+#         return stats
+#     else:
+#         print(f"❌ Error {response.status_code}: {response.text}")
+#         return None
             
 
 # data = get_game_stats(2025)
