@@ -3,7 +3,7 @@ import os
 import requests
 import json
 
-#team_id = [(1, 'Falcons'), (2, 'Bills'), (3, 'Bears'), (4, 'Bengals'), (5, 'Browns'), (6, 'Cowboys'), (7, 'Broncos'), (8, 'Lions'), (9, 'Packers'), (10, 'Texans'), (11, 'Colts'), (12, 'Jaguars'), (13, 'Chiefs'), (14, 'Rams'), (15, 'Chargers'), (16, 'Dolphins'), (17, 'Vikings'), (18, 'Patriots'), (19, 'Saints'), (20, 'Giants'), (21, 'Jets'), (22, 'Raiders'), (23, 'Eagles'), (24, 'Steelers'), (25, '49ers'), (26, 'Seahawks'), (27, 'Buccaneers'), (28, 'Titans'), (29, 'Cardinals'), (30, 'Washington')]
+#team_id = [(1, 'Falcons'), (2, 'Bills'), (3, 'Bears'), (4, 'Bengals'), (5, 'Browns'), (6, 'Cowboys'), (7, 'Broncos'), (8, 'Lions'), (9, 'Packers'), (34, 'Texans'), (11, 'Colts'), (30, 'Jaguars'), (12, 'Chiefs'), (14, 'Rams'), (24, 'Chargers'), (15, 'Dolphins'), (16, 'Vikings'), (17, 'Patriots'), (18, 'Saints'), (19, 'Giants'), (20, 'Jets'), (13, 'Raiders'), (21, 'Eagles'), (23, 'Steelers'), (25, '49ers'), (26, 'Seahawks'), (27, 'Buccaneers'), (10, 'Titans'), (22, 'Cardinals'), (28, 'Commanders'), (33, 'Ravens'), (29, 'Panthers')]
 
 # Add the project root directory to the PYTHONPATH
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -74,24 +74,19 @@ def get_game_stats(year):
         print(f"❌ Error {response.status_code}: {response.text}")
         return None
 
-# def get_stats():
+def get_stats(game_id, team_id, player_id):
 
-#     EVENT_ID = games.id
+    url1 = f"https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/{game_id}/competitions/{game_id}/competitors/{team_id}/roster/{player_id}/statistics/0"
 
-#     ATHLETE_ID = Player.id
-#     TEAM_ID = Player.team
+    response = requests.get(url1)
 
-#     url1 = f"https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/{EVENT_ID}/competitions/{EVENT_ID}/competitors/{TEAM_ID}/roster/{ATHLETE_ID}/statistics/0"
-
-#     response = requests.get(url1)
-
-#     if response.status_code == 200:
-#         print("✅ Successfully fetched data! Parsing response... of STATZZZZZZZ")
-#         stats = response.json()
-#         return stats
-#     else:
-#         print(f"❌ Error {response.status_code}: {response.text}")
-#         return None
+    if response.status_code == 200:
+        print("✅ Successfully fetched data! Parsing response... of STATZZZZZZZ")
+        stats = response.json()
+        return stats
+    else:
+        print(f"❌ Error {response.status_code}: {response.text}")
+        return None
             
 
 # data = get_game_stats(2025)

@@ -21,18 +21,18 @@ def start_scheduler():
 
 def daily_task_wrapper():
     print("Running daily task...")
-    output, ouput1 = live_update()  # Call your existing daily task
-    if output:  # If the daily task returns something meaningful
-        schedule_minute_task(output, ouput1)
+    player_id, game_id, game_time = live_update()  # Call your existing daily task
+    if player_id:  # If the daily task returns something meaningful
+        schedule_minute_task(player_id, game_id)
 
-def schedule_minute_task(output):
-    print(f"Scheduling minute task for: {output}")
-    # Schedule the minute task to run every minute for 24 hours
+def schedule_minute_task(player_id, game_id, game_time):
+    print(f"Scheduling minute task for: {player_id}, {game_id}, at {game_time}")
+    end_time = game_time + timedelta(hours=8)
     scheduler.add_job(
         update_player_status1,
-        trigger=IntervalTrigger(minutes=1),
+        trigger=IntervalTrigger(minutes=1, start_date=game_time, end_date=end_time),
         id="minute_task",
-        args=[output],  # Pass any arguments needed for the minute task
+        args=[player_id, game_id],  # Pass any arguments needed for the minute task
         replace_existing=True,
         max_instances=1,  # Avoid overlapping jobs
     )
