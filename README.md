@@ -19,5 +19,5 @@ python manage.py migrate
 5. Create a Superuser:
 python manage.py runserver
 
-6. Run the Development Server:\n
+6. Run the Development Server:\
 python manage.py runserver
