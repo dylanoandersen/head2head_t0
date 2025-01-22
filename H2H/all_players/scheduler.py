@@ -2,6 +2,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from datetime import datetime, timedelta
 from all_players.tasks import live_update, update_player_status1
+from .models import Player
 
 scheduler = BackgroundScheduler()
 
@@ -9,6 +10,8 @@ def start_scheduler():
     # Schedule the daily task to run once a day
     daily_task_wrapper()
     print("Starting scheduler...")
+    Player.objects.filter(firstName='').delete()
+
     scheduler.add_job(
         daily_task_wrapper,  # Wrapper function to handle output
         trigger=IntervalTrigger(hours=24),  # Run every 24 hours
