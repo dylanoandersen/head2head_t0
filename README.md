@@ -1,4 +1,4 @@
-# 1. Steps to setting up project
+#  Steps to setting up project
 
 1. Clone the Repository
 git clone <repository_url>
