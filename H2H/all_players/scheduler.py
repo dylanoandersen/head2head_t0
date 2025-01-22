@@ -11,6 +11,10 @@ def start_scheduler():
     daily_task_wrapper()
     print("Starting scheduler...")
     Player.objects.filter(firstName='').delete()
+    for player in Player.objects.all():
+        if player.position not in ['Runningback', 'Quarterback', 'Tightend', 'Kicker']:
+            player.delete()
+
 
     scheduler.add_job(
         daily_task_wrapper,  # Wrapper function to handle output
