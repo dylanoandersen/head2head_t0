@@ -1,18 +1,23 @@
 Steps to setting up project
 
-# This is to create a virutal environment if on macOS/Linux
-python3 -m venv venv
-source venv/bin/activate
+# 1. Clone the Repository
+git clone <repository_url>
+cd <repository_name>
 
-# This is to create a virutal environment if on Windows
-python -m venv venv
-venv\Scripts\activate
+# 2. Set Up a Virtual Environment
+python -m venv env
+source env/bin/activate  # On macOS/Linux
+env\Scripts\activate  # On Windows
 
-# This install all dependencies
+# 3. Install Dependencies
 pip install -r requirements.txt
 
-# Migrates all models 
+# 4. Set Up the Database
+python manage.py makemigrations
 python manage.py migrate
 
-# run server to check if working
+# 5. Create a Superuser
+python manage.py runserver
+
+#6. Run the Development Server
 python manage.py runserver
