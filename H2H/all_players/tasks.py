@@ -130,68 +130,143 @@ def update_player_status1(today_player_ids, game_id):
             if 'error' in stats:
                 continue
             else:
-                competition = stats.get('competition', {}).get('splits', {}).get('categories', [])
+                extra_points_attempts=extra_points_made=fg_attempts=fg_made=fg_perc=kick_1_19=kick_20_29=kick_30_39=kick_40_49=kick_50 = 0
+                competition = stats.get('splits', {}).get('categories', [])
                 for cat in competition:
                     if cat.get('name', '') == 'passing':
                         passing_stats = cat.get('stats',[])
                         for passi in passing_stats:
                             if passi.get('name', '') == 'passingAttempts':
-                                pass_att = passi.get('displayValue', 0)
+                                pass_att = passi.get('value', 0)
                             elif passi.get('name', '') == 'completions':
-                                completions = passi.get('displayValue', 0)
+                                completions = passi.get('value', 0)
                             elif passi.get('name', '') == 'completionPct':
-                                completions_perc = passi.get('displayValue', 0)
+                                completions_perc = passi.get('value', 0)
                             elif passi.get('name', '') == 'passingYards':
-                                pass_yards = passi.get('displayValue', 0)
+                                pass_yards = passi.get('value', 0)
                             elif passi.get('name', '') == 'yardsPerCompletion':
-                                avg_pass_yards_completions = passi.get('displayValue', 0)
+                                avg_pass_yards_completions = passi.get('value', 0)
                             elif passi.get('name', '') == 'passingTouchdowns':
-                                pass_tds = passi.get('displayValue', 0)
+                                pass_tds = passi.get('value', 0)
                             elif passi.get('name', '') == 'interceptions':
-                                ints = passi.get('displayValue', 0)
+                                ints = passi.get('value', 0)
                             elif passi.get('name', '') == 'sacks':
-                                sacks = passi.get('displayValue', 0)
+                                sacks = passi.get('value', 0)
+                            elif passi.get('name', '') == 'passingFumbles':
+                                passing_fumbles = passi.get('value', 0)
                     elif cat.get('name', '') == 'rushing':
                         rushing_stats = cat.get('stats', [])
                         for rush in rushing_stats:
                             if rush.get('name', '') == 'rushingAttempts':
-                                carrys = rush.get('displayValue', 0)
+                                carrys = rush.get('value', 0)
                             elif rush.get('name', '') == 'rushingYards':
-                                rush_yards = rush.get('displayValue', 0)
+                                rush_yards = rush.get('value', 0)
                             elif rush.get('name', '') == 'yardsPerRushAttempt':
-                                avg_rush_yards_perCarry = rush.get('displayValue', 0)
-                            elif rush.get('name', '') == 'yardsPerGame':
-                                avg_rush_yards_perGame = rush.get('displayValue', 0)
+                                avg_rush_yards_perCarry = rush.get('value', 0)
                             elif rush.get('name', '') == 'rushingTouchdowns':
-                                rush_tds = rush.get('displayValue', 0)
+                                rush_tds = rush.get('value', 0)
+                            elif rush.get('name', '') == 'rushingFumbles':
+                                rush_fumbles = rush.get('value', 0)
                     elif cat.get('name', '') == 'receiving':
                         receiving_stats = cat.get('stats', [])
                         for rec in receiving_stats:
                             if rec.get('name', '') == 'receptions':
-                                catches = rec.get('displayValue', 0)
+                                catches = rec.get('value', 0)
                             elif rec.get('name', '') == 'receivingTargets':
-                                targets = rec.get('displayValue', 0)
+                                targets = rec.get('value', 0)
                             elif rec.get('name', '') == 'receivingYards':
-                                recieving_yards = rec.get('displayValue', 0)
-                            elif rec.get('name', '') == 'receivingYardsPerGame':
-                                avg_recieving_yards_perGame = rec.get('displayValue', 0)
+                                recieving_yards = rec.get('value', 0)
                             elif rec.get('name', '') == 'yardsPerReception':
-                                avg_recieving_yards_perCatch = rec.get('displayValue', 0)
+                                avg_recieving_yards_perCatch = rec.get('value', 0)
                             elif rec.get('name', '') == 'receivingTouchdowns':
-                                receiving_tds = rec.get('displayValue', 0)
-                            
-                            
+                                receiving_tds = rec.get('value', 0)
+                            elif rec.get('name', '') == 'receivingFumbles':
+                                receiving_fumbles = rec.get('value', 0)
+                    elif cat.get('name', '') == 'kicking':
+                        kicking_stats = cat.get('stats', [])
+                        for kick in kicking_stats:
+                            if kick.get('name', '') == 'fgfieldGoalsMade1_191_19':
+                                kick_1_19 = kick.get('value', 0)
+                            elif kick.get('name', '') == 'fieldGoalsMade20_29':
+                                kick_20_29 = kick.get('value', 0)
+                            elif kick.get('name', '') == 'fieldGoalsMade30_39':
+                                kick_30_39 = kick.get('value', 0)
+                            elif kick.get('name', '') == 'fieldGoalsMade40_49':
+                                kick_40_49 = kick.get('value', 0)
+                            elif kick.get('name', '') == 'fieldGoalsMade50':
+                                kick_50 = kick.get('value', 0)
+                            elif kick.get('name', '') == 'extraPointAttempts':
+                                extra_points_attempts = kick.get('value', 0)
+                            elif kick.get('name', '') == 'extraPointsMade':
+                                extra_points_made = kick.get('value', 0)
+                            elif kick.get('name', '') == 'fieldGoalAttempts':
+                                fg_attempts = kick.get('value', 0)
+                            elif kick.get('name', '') == 'fieldGoalPct':
+                                fg_perc = kick.get('value', 0)
+                            elif kick.get('name', '') == 'fieldGoalsMade':
+                                fg_made = kick.get('value', 0)
+                
+                receiving_fumbles = int(receiving_fumbles if receiving_fumbles else 0)
+                rush_fumbles = int(rush_fumbles if rush_fumbles else 0)
+                qb_fumbles = int(passing_fumbles if passing_fumbles else 0)
+
+                if Player.objects.get(id=id).position == 'QB':
+                    fum = qb_fumbles + rush_fumbles
+                    fum = str(fum)
                     Player_Stats.objects.update_or_create(
                         id=id,
-                        game_id=ids,
                         defaults={
-                            'pass_att': cat.get('stats', {}).get('passing', {}).get('attempts', 0),
-                            'completions': cat.get('stats', {}).get('passing', {}).get('completions', 0),
-                        }
+                            'fumbles': fum
+                        })
+                elif Player.objects.get(id=id).position == 'RB' or Player.objects.get(id=id).position == 'K':
+                    rush_fumbles = str(rush_fumbles)
+                    Player_Stats.objects.update_or_create(
+                        id=id,
+                        defaults={
+                            'fumbles': rush_fumbles
+                        })
+                elif Player.objects.get(id=id).position == 'WR' or Player.objects.get(id=id).position == 'TE':
+                    receiving_fumbles = str(receiving_fumbles)
+                    Player_Stats.objects.update_or_create(
+                        id=id,
+                        defaults={
+                            'fumbles': receiving_fumbles
+                        })
+                Player_Stats.objects.update_or_create(
+                    id=id,
+                    game_id=ids,
+                    defaults={
+                        'pass_att': pass_att,
+                        'completions': completions,
+                        'completions_perc': completions_perc,
+                        'pass_yards': pass_yards,
+                        'avg_pass_yards_completions': avg_pass_yards_completions,
+                        'pass_tds': pass_tds,
+                        'ints': ints,
+                        'sacks': sacks,
+                        'catches': catches,
+                        'targets': targets,
+                        'avg_recieving_yards_perCatch': avg_recieving_yards_perCatch,
+                        'receiving_yards': recieving_yards,
+                        'receiving_tds': receiving_tds,
+                        'carrys': carrys,
+                        'rush_yards': rush_yards,
+                        'avg_rush_yards_perCarry': avg_rush_yards_perCarry,
+                        'rush_tds': rush_tds,
+                        'kick_1_19': kick_1_19,
+                        'kick_20_29': kick_20_29,
+                        'kick_30_39': kick_30_39,
+                        'kick_40_49': kick_40_49,
+                        'kick_50': kick_50,
+                        'fg_perc': fg_perc,
+                        'fg_attempts': fg_attempts,
+                        'fg_made': fg_made,
+                        'extra_points_made': extra_points_made,
+                        'extra_points_attempts': extra_points_attempts,
+                    }
 
-                    )
+                )
             
-#4248528
     # Update player statuses
     for id in today_player_ids:
         result = fetch_player_positions(id)

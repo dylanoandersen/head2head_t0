@@ -30,13 +30,11 @@ class Player_Stats(models.Model):
     sacks = models.IntegerField(default=0)
     catches = models.IntegerField(default=0)
     targets = models.IntegerField(default=0)
-    avg_recieving_yards_perGame = models.IntegerField(default=0)
     avg_recieving_yards_perCatch = models.FloatField(default=0)
     receiving_yards = models.FloatField(default=0)
     receiving_tds = models.IntegerField(default=0)
     carrys = models.IntegerField(default=0)
     rush_yards = models.IntegerField(default=0)
-    avg_rush_yards_perGame = models.FloatField(default=0)
     avg_rush_yards_perCarry = models.FloatField(default=0)
     rush_tds = models.IntegerField(default=0)
     fumbles = models.IntegerField(default=0)
@@ -47,6 +45,9 @@ class Player_Stats(models.Model):
     kick_50 = models.IntegerField(default=0)
     fg_perc = models.FloatField(default=0)
     fg_attempts = models.IntegerField(default=0)
+    fg_made = models.IntegerField(default=0)
+    extra_points_made = models.IntegerField(default=0)
+    extra_points_attempts = models.IntegerField(default=0)
     total_fantasy_points = models.FloatField(default=0)
 
 class Game(models.Model):
