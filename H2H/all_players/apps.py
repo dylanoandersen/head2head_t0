@@ -7,8 +7,10 @@ class AllPlayersConfig(AppConfig):
 
     # Start function when server starts
     def ready(self):
-        print("AppConfig ready method executed.")
+        from django.core.signals import request_finished
         from .scheduler import start_scheduler
-        start_scheduler()
+
+        # Connect to the `request_finished` signal to delay starting
+        request_finished.connect(start_scheduler)
 
 

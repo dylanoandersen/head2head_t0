@@ -78,10 +78,15 @@ WSGI_APPLICATION = 'head2head.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'h2h',  # Replace with your database name
+        'USER': 'dandersen',      # Replace with your MySQL username
+        'PASSWORD': 'dylan3',  # Replace with your MySQL password
+        'HOST': '172.17.52.58',      # Replace with your IP address (e.g., 192.168.1.100)
+        'PORT': '3306',                # MySQL default port
     }
 }
+
 
 
 # Password validation
