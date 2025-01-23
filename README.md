@@ -12,12 +12,24 @@ env\Scripts\activate  # On Windows
 3. Install Dependencies:\
 pip install -r requirements.txt
 
-4. Set Up the Database:\
+4. Configure settings.py
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'h2h',               
+        'USER': 'dandersen',    
+        'PASSWORD': 'dylan3', 
+        'HOST': '172.17.52.58',      
+        'PORT': '3306',              
+    }
+}
+
+5. Set Up the Database:\
 python manage.py makemigrations\
 python manage.py migrate
 
-5. Create a Superuser:\
+6. Create a Superuser:\
 python manage.py runserver
 
-6. Run the Development Server:\
+7. Run the Development Server:\
 python manage.py runserver
