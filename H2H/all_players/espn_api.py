@@ -51,7 +51,8 @@ def fetch_player_positions(player_id):
         return response.json()
     else:
         print(f"❌ Error {response.status_code}: {response.text}")
-        return None
+        pp=1
+        return pp
 
 
 

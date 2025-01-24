@@ -6,7 +6,7 @@ from datetime import datetime
 
 # Ensure Django settings are loaded
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "head2head.settings")
-#django.setup()  # Initializes Django (uncomment if required to load Django models)
+django.setup()  # Initializes Django (uncomment if required to load Django models)
 
 from .espn_api import fetch_espn_data, get_game_stats, fetch_player_positions, get_stats
 from .models import Player, Game, Player_Stats
@@ -33,12 +33,14 @@ def update_espn_data():
                 'jersey': player.get('jersey', 0)
             }
         )
-update_espn_data()
+
 # Updates player positions and team data by fetching additional information
 def update_player_positions():
     for player in Player.objects.all():  # Loop through all players in the database
         result = fetch_player_positions(player.id)  # Fetch position and team details
-
+        if result == 1:
+            print(player.id, " problem !!!!!!!!!")
+            continue
         athlete = result.get('athlete', {})  # Get athlete data
 
         # Extract position, team, and status information
@@ -57,6 +59,7 @@ def update_player_positions():
         if athlete.get('active', '') == False:  # Remove inactive players
             Player.objects.filter(id=player.id).delete()
             print("Player deleted")
+            continue
 
         # Update or create player data with new details
         Player.objects.update_or_create(
@@ -69,7 +72,16 @@ def update_player_positions():
             }
         )
         print("Player position added")
-
+def delete_positionsNotNeeded():
+    for players in Player.objects.all():
+        if players.position == 'Quarterback' or players.position == 'Running Back' or players.position == 'Wide Receiver' or players.position == 'Tight End' or players.position == 'Place kicker' or players.position == 'Punter':
+            continue
+        else:
+            print("player position: ", players.position)
+            players.delete()
+z=update_espn_data()
+x=update_player_positions()
+y= delete_positionsNotNeeded()
 # Runs daily to check if there are any games scheduled for today
 def live_update():
     print("Running daily task... live_update")
