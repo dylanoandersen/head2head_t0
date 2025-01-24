@@ -15,7 +15,7 @@ class Player(models.Model):
     jersey = models.IntegerField(default=-1)
 
     def __str__(self):
-        return f"{self.id}{self.firstName} {self.lastName}"
+        return f"{self.id} {self.firstName} {self.lastName}"
 
 class Player_Stats(models.Model):
     id = models.CharField(max_length=20, primary_key=True)
@@ -52,6 +52,9 @@ class Player_Stats(models.Model):
     extra_points_attempts = models.IntegerField(default=0)
     total_fantasy_points = models.FloatField(default=0)
 
+    def __str__(self):
+        return f"{self.firstName} {self.lastName} game stats"
+
 class Game(models.Model):
     id = models.CharField(max_length=20, primary_key=True)
     season_type = models.CharField(max_length=100, default='0')
@@ -63,4 +66,4 @@ class Game(models.Model):
     current_play = models.CharField(max_length=200, default='0')
 
     def __str__(self):
-        return f"{self.id}{self.home_team} vs {self.away_team} {self.date} {self.current_play}"
+        return f"{self.id} {self.home_team} vs {self.away_team} {self.date} {self.current_play}"

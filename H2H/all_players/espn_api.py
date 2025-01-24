@@ -85,8 +85,9 @@ def get_stats(game_id, team_id, player_id):
         stats = response.json()
         return stats
     else:
+        pp = 1
         print(f"❌ Error {response.status_code}: {response.text}")
-        return None
+        return pp
             
 
 # data = get_game_stats(2025)

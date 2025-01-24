@@ -33,7 +33,7 @@ def update_espn_data():
                 'jersey': player.get('jersey', 0)
             }
         )
-
+update_espn_data()
 # Updates player positions and team data by fetching additional information
 def update_player_positions():
     for player in Player.objects.all():  # Loop through all players in the database
@@ -127,8 +127,16 @@ def update_player_status1(today_player_ids, game_id):
             players_team = Player.objects.get(id=id).team
             team_number = team_dict.get(players_team)
             stats = get_stats(ids, team_number, id)
-            if 'error' in stats:
-                continue
+            first = Player.objects.get(id=id).firstName
+            last = Player.objects.get(id=id).lastName
+            print(first, ' ', last)
+            if stats == 1:
+                Player_Stats.objects.update_or_create(id = id,
+                                                      game_id = ids,
+                                                      defaults={
+                                                            'firstName': first,
+                                                            'lastName': last
+                                                      })
             else:
                 extra_points_attempts=extra_points_made=fg_attempts=fg_made=fg_perc=kick_1_19=kick_20_29=kick_30_39=kick_40_49=kick_50 = 0
                 competition = stats.get('splits', {}).get('categories', [])
@@ -232,10 +240,14 @@ def update_player_status1(today_player_ids, game_id):
                         defaults={
                             'fumbles': receiving_fumbles
                         })
+                firstName = Player.objects.get(id=id).firstName
+                lastName = Player.objects.get(id=id).lastName
                 Player_Stats.objects.update_or_create(
                     id=id,
                     game_id=ids,
                     defaults={
+                        'firstName': firstName,
+                        'lastName': lastName,
                         'pass_att': pass_att,
                         'completions': completions,
                         'completions_perc': completions_perc,
@@ -266,6 +278,7 @@ def update_player_status1(today_player_ids, game_id):
                     }
 
                 )
+                print("Player stats for a game added")
             
     # Update player statuses
     for id in today_player_ids:
@@ -279,6 +292,13 @@ def update_player_status1(today_player_ids, game_id):
             id=id,
             defaults={'status': status}
         )
+
+# player_idz = []
+# for player in Player.objects.all():
+#     if player.team == "Texans" or player.team == "Colts":
+#         player_idz.append(player.id)
+# print(player_idz)
+# x=update_player_status1(player_idz,[401671861])
 
 # Retrieves a list of teams playing today and their game IDs
 def today_games():
