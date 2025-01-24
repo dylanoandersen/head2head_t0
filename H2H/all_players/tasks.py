@@ -79,9 +79,7 @@ def delete_positionsNotNeeded():
         else:
             print("player position: ", players.position)
             players.delete()
-z=update_espn_data()
-x=update_player_positions()
-y= delete_positionsNotNeeded()
+
 # Runs daily to check if there are any games scheduled for today
 def live_update():
     print("Running daily task... live_update")
