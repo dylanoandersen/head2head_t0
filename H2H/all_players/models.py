@@ -19,6 +19,8 @@ class Player(models.Model):
 
 class Player_Stats(models.Model):
     id = models.CharField(max_length=20, primary_key=True)
+    firstName = models.CharField(max_length=20, default='0')
+    lastName = models.CharField(max_length=20, default='0')
     game_id = models.CharField(max_length=20, default='0')
     pass_att = models.IntegerField(default=0)
     completions = models.IntegerField(default=0)

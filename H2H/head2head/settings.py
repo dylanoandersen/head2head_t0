@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -25,7 +26,7 @@ SECRET_KEY = 'django-insecure-y&3esl@5u3d!a=e_w2wky^evwtxd$tafyg5)rj5_mh^_(vy_+$
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -40,6 +41,7 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'all_players',
+    "corsheaders"
 ]
 
 MIDDLEWARE = [
@@ -82,7 +84,7 @@ DATABASES = {
         'NAME': 'h2h',  # Replace with your database name
         'USER': 'dandersen',      # Replace with your MySQL username
         'PASSWORD': 'dylan3',  # Replace with your MySQL password
-        'HOST': '172.17.52.58',      # Replace with your IP address (e.g., 192.168.1.100)
+        'HOST': '172.17.52.71',      # Replace with your IP address (e.g., 192.168.1.100)
         'PORT': '3306',                # MySQL default port
     }
 }

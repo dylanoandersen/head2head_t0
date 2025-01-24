@@ -22,7 +22,8 @@ DATABASES = {
         'HOST': 'xxx',      
         'PORT': '3306',              
     }
-}
+}\
+contact me for the HOST and PASSWORD
 
 5. Set Up the Database:\
 python manage.py makemigrations\
