@@ -30,7 +30,7 @@ python manage.py makemigrations\
 python manage.py migrate
 
 6. Create a Superuser:\
-python manage.py runserver
+python manage.py createsuperuser
 
 7. Run the Development Server:\
 python manage.py runserver
