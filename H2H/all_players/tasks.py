@@ -2,11 +2,11 @@ import os
 import django
 import requests
 import pytz
-from datetime import datetime
+from datetime import datetime, date
 
 # Ensure Django settings are loaded
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "head2head.settings")
-django.setup()  # Initializes Django (uncomment if required to load Django models)
+#django.setup()  # Initializes Django (uncomment if required to load Django models)
 
 from .espn_api import fetch_espn_data, get_game_stats, fetch_player_positions, get_stats
 from .models import Player, Game, Player_Stats
@@ -304,14 +304,14 @@ def update_player_status1(today_player_ids, game_id):
     #         defaults={'status': status}
     #     )
 
-player_idz = []
-for player in Player.objects.all():
-    if player.team == "Titans" or player.team == "Bears":
-        if player.status != 'Active':
-            continue
-        else:
-            player_idz.append(player.id)
-x=update_player_status1(player_idz,[401671719])
+# player_idz = []
+# for player in Player.objects.all():
+#     if player.team == "Titans" or player.team == "Bears":
+#         if player.status != 'Active':
+#             continue
+#         else:
+#             player_idz.append(player.id)
+# x=update_player_status1(player_idz,[401671719])
 
 
 # Retrieves a list of teams playing today and their game IDs
@@ -324,22 +324,22 @@ def today_games():
         utc_time = datetime.strptime(date_string, "%Y-%m-%dT%H:%MZ")
         utc_time = utc_time.replace(tzinfo=pytz.UTC)
         central_time = utc_time.astimezone(pytz.timezone("US/Central"))
+
         today = datetime.now(pytz.timezone("US/Central")).date()
+
         if central_time.date() == today:
             teams_playing_ids.append(games.id)
             teams_playing_today.extend([games.home_team, games.away_team])
             time = central_time.time()
             game_times.append(time)
 
-    time_objects = [datetime.strptime(game_times, "%H:%M:%S").time() for time in game_times]
-    time_objects.sort()
-    times = 0
-    if time_objects:
-        earliest_time = time_objects[0]
+    game_times.sort()
+    if game_times:
+        earliest_time = game_times[0]
         earliest_time_str = earliest_time.strftime("%H:%M:%S")
         times = [earliest_time_str]
 
-
+    print(times)
     return teams_playing_today, teams_playing_ids, times
 
 # Updates game data for the 2024 season

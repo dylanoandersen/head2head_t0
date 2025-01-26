@@ -6,7 +6,8 @@ from .models import Player
 
 scheduler = BackgroundScheduler()
 
-def start_scheduler(**kwargs):
+def start_scheduler():
+    print('byeeeeee')
     # Schedule the daily task to run once a day
     daily_task_wrapper()
     print("Starting scheduler...")
