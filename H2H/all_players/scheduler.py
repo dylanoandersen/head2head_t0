@@ -25,7 +25,7 @@ def daily_task_wrapper():
     print("Running daily task...")
     player_id, game_id, game_time = live_update()  # Call your existing daily task
     if player_id:  # If the daily task returns something meaningful
-        schedule_minute_task(player_id, game_id)
+        schedule_minute_task(player_id, game_id, game_time)
 
 def schedule_minute_task(player_id, game_id, game_time):
     print(f"Scheduling minute task for: {player_id}, {game_id}, at {game_time}")
@@ -38,6 +38,7 @@ def schedule_minute_task(player_id, game_id, game_time):
         replace_existing=True,
         max_instances=1,  # Avoid overlapping jobs
     )
+    print('live updates coming')
     # Optionally stop this job after 24 hours
     scheduler.add_job(
         stop_minute_task,

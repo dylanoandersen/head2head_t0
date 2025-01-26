@@ -72,6 +72,7 @@ def update_player_positions():
             }
         )
         print("Player position added")
+
 def delete_positionsNotNeeded():
     for players in Player.objects.all():
         if players.position == 'Quarterback' or players.position == 'Running Back' or players.position == 'Wide Receiver' or players.position == 'Tight End' or players.position == 'Place kicker' or players.position == 'Punter':
@@ -291,24 +292,27 @@ def update_player_status1(today_player_ids, game_id):
                 print("Player stats for a game added")
             
     # Update player statuses
-    for id in today_player_ids:
-        result = fetch_player_positions(id)
-        athlete = result.get('athlete', {})
-        status = 'Active'  # Default status
-        if 'injuries' in athlete:
-            status = athlete.get('injuries', [])[0].get('type', {}).get('name', '')
+    # for id in today_player_ids:
+    #     result = fetch_player_positions(id)
+    #     athlete = result.get('athlete', {})
+    #     status = 'Active'  # Default status
+    #     if 'injuries' in athlete:
+    #         status = athlete.get('injuries', [])[0].get('type', {}).get('name', '')
 
-        Player.objects.update_or_create(
-            id=id,
-            defaults={'status': status}
-        )
+    #     Player.objects.update_or_create(
+    #         id=id,
+    #         defaults={'status': status}
+    #     )
 
-# player_idz = []
-# for player in Player.objects.all():
-#     if player.team == "Texans" or player.team == "Colts":
-#         player_idz.append(player.id)
-# print(player_idz)
-# x=update_player_status1(player_idz,[401671861])
+player_idz = []
+for player in Player.objects.all():
+    if player.team == "Titans" or player.team == "Bears":
+        if player.status != 'Active':
+            continue
+        else:
+            player_idz.append(player.id)
+x=update_player_status1(player_idz,[401671719])
+
 
 # Retrieves a list of teams playing today and their game IDs
 def today_games():
