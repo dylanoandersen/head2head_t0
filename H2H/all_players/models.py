@@ -22,6 +22,7 @@ class Player_Stats(models.Model):
     firstName = models.CharField(max_length=20, default='0')
     lastName = models.CharField(max_length=20, default='0')
     game_id = models.CharField(max_length=20, default='0')
+    week = models.IntegerField(default=0)
     pass_att = models.IntegerField(default=0)
     completions = models.IntegerField(default=0)
     completions_perc = models.FloatField(default=0)
@@ -64,6 +65,7 @@ class Game(models.Model):
     home_score = models.IntegerField(default=0)
     away_score = models.IntegerField(default=0)
     current_play = models.CharField(max_length=200, default='0')
+    week = models.IntegerField(default=0)
 
     def __str__(self):
         return f"{self.id} {self.home_team} vs {self.away_team} {self.date} {self.current_play}"
