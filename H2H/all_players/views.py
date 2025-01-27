@@ -7,6 +7,16 @@ from rest_framework.response import Response
 from rest_framework import status
 
 # Create your views here.
+
+@api_view(['GET'])
+def allPlayer(request):
+    player = Player.objects.all()
+    if request.method == 'GET':
+        serializer = PlayerInfoSerializer(player)
+        return Response({"Player": serializer.data})
+    else:
+        print('Could not grab all players')
+
 @api_view(['GET'])
 def player_info(request,id):
     try:
