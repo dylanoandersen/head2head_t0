@@ -347,7 +347,10 @@ def today_games():
         central_time = utc_time.astimezone(pytz.timezone("US/Central"))
 
         today = datetime.now(pytz.timezone("US/Central")).date()
-  
+
+        # comment in or out to simulate, change today to specific_date
+        # specific_date = date(2024, 9, 9)
+
         if central_time.date() == today:
             teams_playing_ids.append(games.id)
             teams_playing_today.extend([games.home_team, games.away_team])
@@ -357,6 +360,12 @@ def today_games():
     game_times.sort()
     if game_times:
         earliest_time = game_times[0]
+    else:
+        earliest_time = 0
+    
+    # comment in or out to simululate change in return statement, earliest time to time
+    # time = datetime.now(pytz.timezone("US/Central")) + timedelta(minutes=2)
+
     return teams_playing_today, teams_playing_ids, earliest_time
 
 # Updates game data for the 2024 season
