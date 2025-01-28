@@ -1,4 +1,5 @@
 import requests
+from .models import Player
 import json
 
 url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=401671789"
@@ -12,3 +13,6 @@ if response1:
      with open("higameinfffffo.txt", "w") as file:
         json.dump(response1, file, indent=4)  # Saves JSON data to file with indentation
 
+
+x = Player.objects.get(id = 11252).id
+print(type(x))
