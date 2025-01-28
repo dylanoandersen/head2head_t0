@@ -5,6 +5,7 @@ from .serializers import PlayerInfoSerializer
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.viewsets import ModelViewSet
 
 # Create your views here.
 
@@ -27,3 +28,5 @@ def player_info(request,id):
     if request.method == 'GET':
         serializer = PlayerInfoSerializer(player)
         return Response({"Player": serializer.data})
+
+

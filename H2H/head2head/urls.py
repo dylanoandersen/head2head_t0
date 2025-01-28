@@ -18,7 +18,12 @@ from django.contrib import admin
 from django.urls import path
 from all_players import views
 
+
+
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('playerInfo/<int:id>', views.player_info)
+
+
 ]

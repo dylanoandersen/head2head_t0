@@ -362,6 +362,9 @@ def today_games():
         earliest_time = game_times[0]
     else:
         earliest_time = 0
+
+
+
     
     # comment in or out to simululate change in return statement, earliest time to time
     # time = datetime.now(pytz.timezone("US/Central")) + timedelta(minutes=2)

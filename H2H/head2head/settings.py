@@ -41,12 +41,16 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'all_players',
-    "corsheaders"
+    'corsheaders',
 ]
+
+# allows django to talk to this address. Local for now.
+CORS_ALLOWED_ORIGINS = ['http://localhost:5173']
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
