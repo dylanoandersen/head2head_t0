@@ -52,3 +52,4 @@ python manage.py createsuperuser
 6. Run the Development Server:\
 python manage.py runserver
 
+7. Ask Chat with errors, usually works
