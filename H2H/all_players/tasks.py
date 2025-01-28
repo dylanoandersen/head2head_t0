@@ -336,11 +336,11 @@ def today_games():
     game_times.sort()
     if game_times:
         earliest_time = game_times[0]
-        earliest_time_str = earliest_time.strftime("%H:%M:%S")
-        times = [earliest_time_str]
+    else:
+        earliest_time = 0
 
-    print(times)
-    return teams_playing_today, teams_playing_ids, times
+
+    return teams_playing_today, teams_playing_ids, earliest_time
 
 # Updates game data for the 2024 season
 def update_game_data():

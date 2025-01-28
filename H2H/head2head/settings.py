@@ -41,12 +41,16 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'all_players',
-    "corsheaders"
+    'corsheaders',
 ]
+
+# allows django to talk to this address. Local for now.
+CORS_ALLOWED_ORIGINS = ['http://localhost:5173']
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -82,9 +86,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'h2h',  # Replace with your database name
-        'USER': 'dandersen',      # Replace with your MySQL username
-        'PASSWORD': 'dylan3',  # Replace with your MySQL password
-        'HOST': '172.17.52.38',      # Replace with your IP address (e.g., 192.168.1.100)
+        'USER': 'bmkinney',      # Replace with your MySQL username
+        'PASSWORD': '0Cyclone6!',  # Replace with your MySQL password
+        'HOST': 'Brads-MacBook-Pro.local',      # Replace with your IP address (e.g., 192.168.1.100)
         'PORT': '3306',                # MySQL default port
     }
 }
