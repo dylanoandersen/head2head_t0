@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+import os
 
 
 class AllPlayersConfig(AppConfig):
@@ -7,7 +8,8 @@ class AllPlayersConfig(AppConfig):
 
     # Start function when server starts
     def ready(self):
-        from .scheduler import start_scheduler
-        start_scheduler()
+        if os.environ.get("RUN_MAIN") == "true":  # Only execute in the main process
+            from .scheduler import start_scheduler
+            start_scheduler()
 
 

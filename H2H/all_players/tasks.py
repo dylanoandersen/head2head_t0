@@ -2,7 +2,7 @@ import os
 import django
 import requests
 import pytz
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 
 # Ensure Django settings are loaded
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "head2head.settings")
@@ -88,15 +88,19 @@ def live_update():
     data, id, game_time = today_games()  # Get today's games and team IDs
     if data:
         for team in data:
-            obj = Player.objects.filter(team=team)  # Find players on the teams playing today
-            for player in obj:
-                today_player_ids.append(player.id)
+            for players in Player.objects.all():
+                if players.team in team:
+                    today_player_ids.append(players.id)
     else:
         print('No games today')
     return today_player_ids, id, game_time
 
 # Updates player status and game data once a minute if there are games today
 def update_player_status1(today_player_ids, game_id):
+
+#___________Game Live Update____________
+
+    print('its doing something')
     for ids in game_id:
         url = f'https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event={ids}'
         response = requests.get(url)
@@ -124,6 +128,15 @@ def update_player_status1(today_player_ids, game_id):
                     home_score = last_play.get('homeScore', 0)
                     text = last_play.get('text', 'N/A')
                     break
+        
+        teamz = []
+        box = response_data.get('boxscore',{}).get('teams', [])
+        for x in box:
+            if 'team' in x:
+                y = x.get('team', {})
+                z = y.get('name', 0)
+                teamz.append(z)
+        week = response_data.get('header', {}).get('week', 0)
 
         # Update or create Game object with live data
         Game.objects.update_or_create(
@@ -131,10 +144,19 @@ def update_player_status1(today_player_ids, game_id):
             defaults={
                 'home_score': home_score,
                 'away_score': away_score,
-                'current_play': text
+                'current_play': text,
+                'week': week
             }
         )
+        
+        obj = Game.objects.get(id = ids)
+        print(vars(obj))
+
+#___________Player Live Update____________
+
         for id in today_player_ids:
+            if Player.objects.get(id = id).team not in teamz:
+                continue
             players_team = Player.objects.get(id=id).team
             team_number = team_dict.get(players_team)
             stats = get_stats(ids, team_number, id)
@@ -142,12 +164,7 @@ def update_player_status1(today_player_ids, game_id):
             last = Player.objects.get(id=id).lastName
             print(first, ' ', last)
             if stats == 1:
-                Player_Stats.objects.update_or_create(id = id,
-                                                      game_id = ids,
-                                                      defaults={
-                                                            'firstName': first,
-                                                            'lastName': last
-                                                      })
+                continue
             else:
                 extra_points_attempts=extra_points_made=fg_attempts=fg_made=fg_perc=kick_1_19=kick_20_29=kick_30_39=kick_40_49=kick_50 = 0
                 competition = stats.get('splits', {}).get('categories', [])
@@ -259,6 +276,7 @@ def update_player_status1(today_player_ids, game_id):
                     defaults={
                         'firstName': firstName,
                         'lastName': lastName,
+                        'week': week,
                         'pass_att': pass_att,
                         'completions': completions,
                         'completions_perc': completions_perc,
@@ -290,7 +308,10 @@ def update_player_status1(today_player_ids, game_id):
 
                 )
                 print("Player stats for a game added")
-            
+
+    print('round done')
+
+
     # Update player statuses
     # for id in today_player_ids:
     #     result = fetch_player_positions(id)
@@ -303,15 +324,15 @@ def update_player_status1(today_player_ids, game_id):
     #         id=id,
     #         defaults={'status': status}
     #     )
-
+# teamzzzz = ['Ravens', 'Chiefs', 'Packers', 'Eagles', 'Steelers', 'Falcons', 'Cardinals', 'Bills', 'Titans', 'Bears', 'Patriots', 'Bengals']
 # player_idz = []
 # for player in Player.objects.all():
-#     if player.team == "Titans" or player.team == "Bears":
+#     if player.team in teamzzzz:
 #         if player.status != 'Active':
 #             continue
 #         else:
 #             player_idz.append(player.id)
-# x=update_player_status1(player_idz,[401671719])
+# x=update_player_status1(player_idz,[401671789,401671805,401671617,401671628,401671719,401671744])
 
 
 # Retrieves a list of teams playing today and their game IDs
@@ -327,10 +348,13 @@ def today_games():
 
         today = datetime.now(pytz.timezone("US/Central")).date()
 
+        # comment in or out to simulate, change today to specific_date
+        # specific_date = date(2024, 9, 9)
+
         if central_time.date() == today:
             teams_playing_ids.append(games.id)
             teams_playing_today.extend([games.home_team, games.away_team])
-            time = central_time.time()
+            time = central_time
             game_times.append(time)
 
     game_times.sort()
@@ -339,6 +363,11 @@ def today_games():
     else:
         earliest_time = 0
 
+
+
+    
+    # comment in or out to simululate change in return statement, earliest time to time
+    # time = datetime.now(pytz.timezone("US/Central")) + timedelta(minutes=2)
 
     return teams_playing_today, teams_playing_ids, earliest_time
 
