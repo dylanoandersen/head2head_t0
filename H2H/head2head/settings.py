@@ -12,10 +12,10 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
-from dotenv import load_dotenv
+# from dotenv import load_dotenv ---FUTURE USE FOR SECURITY
 import os
 
-load_dotenv()
+#load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -58,6 +58,7 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'all_players',
+    'User',
     'corsheaders',
 ]
 
@@ -103,10 +104,10 @@ WSGI_APPLICATION = 'head2head.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'h2h',  # Replace with your database name
-        'USER': 'dandersen',      # Replace with your MySQL username
-        'PASSWORD': 'dylan3',  # Replace with your MySQL password
-        'HOST': '172.17.53.5',      # Replace with your IP address (e.g., 192.168.1.100)
+        'NAME': 'H2H',  # Replace with your database name
+        'USER': 'bmkinney',      # Replace with your MySQL username
+        'PASSWORD': '0Cyclone6!',  # Replace with your MySQL password
+        'HOST': 'Brads-MacBook-Pro.local',      # Replace with your IP address (e.g., 192.168.1.100)
         'PORT': '3306',                # MySQL default port
     }
 }
