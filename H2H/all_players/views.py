@@ -6,6 +6,10 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status, generics
 from rest_framework.viewsets import ModelViewSet
+from django.views.decorators.csrf import csrf_exempt
+from django.db.models import Q
+
+import json
 
 # Create your views here.
 
@@ -30,3 +34,49 @@ def player_info(request,id):
         return Response({"Player": serializer.data})
 
 
+@csrf_exempt
+def search_player(request):
+    if request.method == "GET":
+        name_query = request.GET.get("name", "").strip()
+
+        if not name_query:
+            return JsonResponse({"error": "No name provided"}, status=400)
+
+        # Split the query into first and last name parts
+        name_parts = name_query.split()
+
+        if len(name_parts) == 1:
+            # Search for first name or last name if only one part is provided
+            players = Player.objects.filter(
+                Q(firstName__icontains=name_parts[0]) | Q(lastName__icontains=name_parts[0])
+            )
+        elif len(name_parts) == 2:
+            # If both first and last names are provided, search both fields
+            players = Player.objects.filter(
+                Q(firstName__icontains=name_parts[0]) & Q(lastName__icontains=name_parts[1])
+            )
+        else:
+            # If the query contains more than 2 parts, return an error
+            return JsonResponse({"error": "Invalid name format. Please provide only a first and last name."}, status=400)
+
+        if not players.exists():
+            return JsonResponse({"players": []})
+
+        player_data = [
+            {
+                "id": player.id,
+                "firstName": player.firstName,
+                "lastName": player.lastName,
+                "team": player.team,
+                "position": player.position,
+                "jersey": player.jersey,
+                "age": player.age,  # Add the age
+                "weight": player.weight,  # Add the weight
+                "height": player.displayHeight,  # Add the height
+            }
+            for player in players
+        ]
+
+        return JsonResponse({"players": player_data})
+    
+    return JsonResponse({"error": "Invalid request method"}, status=405)

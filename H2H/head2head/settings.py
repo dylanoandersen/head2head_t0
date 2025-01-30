@@ -104,13 +104,13 @@ WSGI_APPLICATION = 'head2head.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'H2H',  # Replace with your database name
-        'USER': 'bmkinney',      # Replace with your MySQL username
-        'PASSWORD': '0Cyclone6!',  # Replace with your MySQL password
-        'HOST': 'Brads-MacBook-Pro.local',      # Replace with your IP address (e.g., 192.168.1.100)
+        'NAME': 'h2h',  # Replace with your database name
+        'USER': 'root',      # Replace with your MySQL username
+        'PASSWORD': 'Blazeq123',  # Replace with your MySQL password
+        'HOST': '127.0.0.1',      # Replace with your IP address (e.g., 192.168.1.100)
         'PORT': '3306',                # MySQL default port
     }
-}
+} 
 
 
 
