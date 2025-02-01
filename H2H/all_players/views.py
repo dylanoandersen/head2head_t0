@@ -1,3 +1,4 @@
+from django.core.paginator import Paginator
 from django.shortcuts import render
 from django.http import JsonResponse
 from .models import Player
@@ -6,14 +7,17 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status, generics
 from rest_framework.viewsets import ModelViewSet
+from rest_framework.pagination import PageNumberPagination
 
 # Create your views here.
 
 @api_view(['GET'])
 def allPlayer(request):
+    paginator = PageNumberPagination()
+    paginator.page_size = 50
     player = Player.objects.all()
     if request.method == 'GET':
-        serializer = PlayerInfoSerializer(player)
+        serializer = PlayerInfoSerializer(player, many=True)
         return Response({"Player": serializer.data})
     else:
         print('Could not grab all players')
