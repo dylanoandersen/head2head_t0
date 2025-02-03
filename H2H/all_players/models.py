@@ -1,7 +1,7 @@
 from django.db import models
 
 class Player(models.Model):
-    id = models.CharField(max_length=20, primary_key=True) 
+    id = models.CharField(max_length=50, primary_key=True) 
     status = models.CharField(max_length=100, default='0')
     position = models.CharField(max_length=100, default='0')
     firstName = models.CharField(max_length=100)
@@ -16,12 +16,25 @@ class Player(models.Model):
 
     def __str__(self):
         return f"{self.id} {self.firstName} {self.lastName}"
-
-class Player_Stats(models.Model):
+class Game(models.Model):
     id = models.CharField(max_length=20, primary_key=True)
+    season_type = models.CharField(max_length=100, default='0')
+    date = models.CharField(max_length=100, default='0')
+    home_team = models.CharField(max_length=100, default='0')
+    away_team = models.CharField(max_length=100, default='0')
+    home_score = models.IntegerField(default=0)
+    away_score = models.IntegerField(default=0)
+    current_play = models.CharField(max_length=200, default='0')
+    week = models.IntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.id} {self.home_team} vs {self.away_team} {self.date} {self.current_play}"
+class Player_Stats(models.Model):
+    id = models.AutoField(primary_key=True)
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, db_column='player_id')
+    game = models.ForeignKey(Game, on_delete=models.CASCADE, db_column='game_id')
     firstName = models.CharField(max_length=20, default='0')
     lastName = models.CharField(max_length=20, default='0')
-    game_id = models.CharField(max_length=20, default='0')
     week = models.IntegerField(default=0)
     pass_att = models.IntegerField(default=0)
     completions = models.IntegerField(default=0)
@@ -41,6 +54,8 @@ class Player_Stats(models.Model):
     avg_rush_yards_perCarry = models.FloatField(default=0)
     rush_tds = models.IntegerField(default=0)
     fumbles = models.IntegerField(default=0)
+    return_td = models.IntegerField(default=0)
+    two_pt_made = models.IntegerField(default=0)
     kick_1_19 = models.IntegerField(default=0)
     kick_20_29 = models.IntegerField(default=0)
     kick_30_39 = models.IntegerField(default=0)
@@ -51,21 +66,28 @@ class Player_Stats(models.Model):
     fg_made = models.IntegerField(default=0)
     extra_points_made = models.IntegerField(default=0)
     extra_points_attempts = models.IntegerField(default=0)
-    total_fantasy_points = models.FloatField(default=0)
+    proj_fantasy = models.DecimalField(default=0, max_digits=5, decimal_places=2)
+    total_fantasy_points = models.DecimalField(default=0, max_digits=5, decimal_places=2)
 
     def __str__(self):
         return f"{self.firstName} {self.lastName} game stats"
 
-class Game(models.Model):
-    id = models.CharField(max_length=20, primary_key=True)
-    season_type = models.CharField(max_length=100, default='0')
-    date = models.CharField(max_length=100, default='0')
-    home_team = models.CharField(max_length=100, default='0')
-    away_team = models.CharField(max_length=100, default='0')
-    home_score = models.IntegerField(default=0)
-    away_score = models.IntegerField(default=0)
-    current_play = models.CharField(max_length=200, default='0')
+class Def_Stats(models.Model):
+    id = models.AutoField(primary_key=True)
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, db_column='player_id')
+    game = models.ForeignKey(Game, on_delete=models.CASCADE, db_column='game_id')
+    location = models.CharField(max_length=20, default='0')
+    team = models.CharField(max_length=20, default='0')
     week = models.IntegerField(default=0)
+    pts_allowed = models.IntegerField(default=0)
+    inter = models.IntegerField(default=0)
+    sacks = models.IntegerField(default=0)
+    safties = models.IntegerField(default=0)
+    touchdowns = models.IntegerField(default=0)
+    forc_fum = models.IntegerField(default=0)
+    fumble_rec = models.IntegerField(default=0)
+    proj_fantasy = models.DecimalField(default=0, max_digits=5, decimal_places=2)
+    total_fantasy_points = models.DecimalField(default=0, max_digits=5, decimal_places=2)
 
     def __str__(self):
-        return f"{self.id} {self.home_team} vs {self.away_team} {self.date} {self.current_play}"
+        return f"{self.team} game stats"

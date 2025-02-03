@@ -7,9 +7,9 @@ class AllPlayersConfig(AppConfig):
     name = 'all_players'
 
     # Start function when server starts
-    def ready(self):
-        if os.environ.get("RUN_MAIN") == "true":  # Only execute in the main process
-            from .scheduler import start_scheduler
-            start_scheduler()
+    # def ready(self):
+    #     if os.environ.get("RUN_MAIN") == "true":  # Only execute in the main process
+    #         from .scheduler import start_scheduler
+    #         start_scheduler()
 
 
