@@ -59,6 +59,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'all_players',
     'corsheaders',
+    'User',
 ]
 
 # allows django to talk to this address. Local for now.
@@ -106,7 +107,7 @@ DATABASES = {
         'NAME': 'h2h',  # Replace with your database name
         'USER': 'dandersen',      # Replace with your MySQL username
         'PASSWORD': 'dylan3',  # Replace with your MySQL password
-        'HOST': '172.17.53.5',      # Replace with your IP address (e.g., 192.168.1.100)
+        'HOST': '172.17.39.79',      # Replace with your IP address (e.g., 192.168.1.100)
         'PORT': '3306',                # MySQL default port
     }
 }

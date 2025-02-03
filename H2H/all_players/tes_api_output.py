@@ -1,18 +1,13 @@
 import requests
-from .models import Player
 import json
 
-url = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=401671789"
+url1 = "https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401671617/competitions/401671617/competitors/22/roster/4240631/statistics/0"
+url = 'https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/events/401671617/competitions/401671617/competitors/22/statistics'
 
 
-401671886
 response = requests.get(url)
 response1 = response.json()
 
 if response1:
-     with open("higameinfffffo.txt", "w") as file:
+     with open("cardprteam_defmaygbe.txt", "w") as file:
         json.dump(response1, file, indent=4)  # Saves JSON data to file with indentation
-
-
-x = Player.objects.get(id = 11252).id
-print(type(x))
