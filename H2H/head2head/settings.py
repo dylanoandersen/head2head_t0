@@ -62,6 +62,8 @@ INSTALLED_APPS = [
     'all_players',
     'User',
     'corsheaders',
+    'rest_framework_simplejwt',
+
 ]
 
 # allows django to talk to this address. Local for now.

@@ -17,7 +17,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from all_players import views
-from User.views import CreateUserView
+from User.views import CreateUserView, VerifyTokenView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 
@@ -34,5 +34,6 @@ urlpatterns = [
     path('user/token/refresh', TokenRefreshView.as_view(), name='refresh'),
     path('user-auth/', include('rest_framework.urls')),
     path('search/', views.search_player, name='search_player'),
+    path('api/verifyToken/', VerifyTokenView.as_view(), name='verify_token'),
 
 ]
