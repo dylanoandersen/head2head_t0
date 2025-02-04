@@ -17,7 +17,7 @@ import json
 def allPlayer(request):
     player = Player.objects.all()
     if request.method == 'GET':
-        serializer = PlayerInfoSerializer(player)
+        serializer = PlayerInfoSerializer(player, many=True)
         return Response({"Player": serializer.data})
     else:
         print('Could not grab all players')
