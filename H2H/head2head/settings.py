@@ -12,10 +12,10 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
-from dotenv import load_dotenv
+# from dotenv import load_dotenv ---FUTURE USE FOR SECURITY
 import os
 
-load_dotenv()
+#load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,6 +39,8 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 50,  # Number of results per page
 }
 
 SIMPLE_JWT = {
@@ -58,8 +60,11 @@ INSTALLED_APPS = [
 
     'rest_framework',
     'all_players',
-    'corsheaders',
     'User',
+    'corsheaders',
+    'rest_framework_simplejwt',
+    'User',
+
 ]
 
 # allows django to talk to this address. Local for now.
@@ -110,7 +115,7 @@ DATABASES = {
         'HOST': '172.17.39.79',      # Replace with your IP address (e.g., 192.168.1.100)
         'PORT': '3306',                # MySQL default port
     }
-}
+} 
 
 
 
