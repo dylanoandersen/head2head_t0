@@ -109,9 +109,9 @@ def today_games():
         today = datetime.now(pytz.timezone("US/Central")).date()
 
         # comment in or out to simulate, change today to specific_date in if statement
-        specific_date = date(2024, 9, 9)
+        #specific_date = date(2024, 9, 9)
 
-        if central_time.date() == specific_date:
+        if central_time.date() == today:
             teams_playing_ids.append(games.id)
             teams_playing_today.extend([games.home_team, games.away_team])
             time = central_time
@@ -124,9 +124,9 @@ def today_games():
         earliest_time = 0
 
     # comment in or out to simululate, change in return statement, earliest time to time
-    time = datetime.now(pytz.timezone("US/Central")) + timedelta(minutes=1)
+    #time = datetime.now(pytz.timezone("US/Central")) + timedelta(minutes=1)
 
-    return teams_playing_today, teams_playing_ids, time
+    return teams_playing_today, teams_playing_ids, earliest_time
 
 # Updates player status and game data once a minute if there are games today
 def update_player_status1(today_player_ids, game_id):
