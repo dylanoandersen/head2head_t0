@@ -232,6 +232,9 @@ def update_player_status1(today_player_ids, game_id):
                             if r.get('name', '') == 'defFumbleReturns':
                                 fumble_rec = r.get('value', 0)
                                 break
+
+                fantasy_pts = fantasy_point_def(def_td, def_ints, fumble_rec, forc_fum, def_saf, def_sacks, points_allowed)
+                
                 Def_Stats.objects.update_or_create(
                     player = player_instance,
                     game = game_instance,
@@ -245,7 +248,8 @@ def update_player_status1(today_player_ids, game_id):
                         'safties': def_saf,
                         'touchdowns': def_td,
                         'forc_fum': forc_fum,
-                        'fumble_rec': fumble_rec
+                        'fumble_rec': fumble_rec,
+                        'total_fantasy_points': fantasy_pts
                     }
                 )
             else:
@@ -461,7 +465,7 @@ def fantasy_point_def(def_spc_td, int, fr, ff, saf, sack, pts_a):
     def_spc_td_pt = def_spc_td * 6
     int_pt = int * 2
     fr_pt = fr * 2
-    ff_pr = ff * 0.5
+    ff_pt = ff * 0.5
     saf_pt = saf * 2
     sack_pt = sack * 1
     if pts_a == 0:
@@ -473,7 +477,13 @@ def fantasy_point_def(def_spc_td, int, fr, ff, saf, sack, pts_a):
     elif 14 <= pts_a <= 20:
         pts_a_pt = 1
     elif 21 <= pts_a <=27:
-        pts_a_pt
+        pts_a_pt = 0
+    elif 28 <= pts_a <= 34:
+        pts_a_pt = -1
+    else:
+        pts_a_pt = -4
+    fantasy_points = def_spc_td_pt + int_pt + fr_pt + ff_pt + saf_pt + sack_pt + pts_a_pt
+    return fantasy_points
 
 # Updates game data for the 2024 season
 def update_game_data():
