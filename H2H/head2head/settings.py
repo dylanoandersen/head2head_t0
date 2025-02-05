@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'User',
     'corsheaders',
     'rest_framework_simplejwt',
+    'User',
 
 ]
 
@@ -108,10 +109,10 @@ WSGI_APPLICATION = 'head2head.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'H2H',  # Replace with your database name
-        'USER': 'bmkinney',      # Replace with your MySQL username
-        'PASSWORD': '0Cyclone6!',  # Replace with your MySQL password
-        'HOST': 'Brads-MacBook-Pro.local',      # Replace with your IP address (e.g., 192.168.1.100)
+        'NAME': 'h2h',  # Replace with your database name
+        'USER': 'dandersen',      # Replace with your MySQL username
+        'PASSWORD': 'dylan3',  # Replace with your MySQL password
+        'HOST': '172.17.39.79',      # Replace with your IP address (e.g., 192.168.1.100)
         'PORT': '3306',                # MySQL default port
     }
 } 

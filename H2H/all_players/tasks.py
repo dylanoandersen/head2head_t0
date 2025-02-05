@@ -6,10 +6,10 @@ from datetime import datetime, date, timedelta
 
 # Ensure Django settings are loaded
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "head2head.settings")
-#django.setup()  # Initializes Django (uncomment if required to load Django models)
+django.setup()  # Initializes Django (uncomment if required to load Django models)
 
-from .espn_api import fetch_espn_data, get_game_stats, fetch_player_positions, get_stats
-from .models import Player, Game, Player_Stats
+from .espn_api import fetch_espn_data, get_game_stats, fetch_player_positions, get_stats, game_details, get_def_stats, fetch_def_info
+from .models import Player, Game, Player_Stats, Def_Stats
 
 team_id = [(1, 'Falcons'), (2, 'Bills'), (3, 'Bears'), (4, 'Bengals'), (5, 'Browns'), (6, 'Cowboys'), (7, 'Broncos'), (8, 'Lions'), (9, 'Packers'), (34, 'Texans'), (11, 'Colts'), (30, 'Jaguars'), (12, 'Chiefs'), (14, 'Rams'), (24, 'Chargers'), (15, 'Dolphins'), (16, 'Vikings'), (17, 'Patriots'), (18, 'Saints'), (19, 'Giants'), (20, 'Jets'), (13, 'Raiders'), (21, 'Eagles'), (23, 'Steelers'), (25, '49ers'), (26, 'Seahawks'), (27, 'Buccaneers'), (10, 'Titans'), (22, 'Cardinals'), (28, 'Commanders'), (33, 'Ravens'), (29, 'Panthers')]
 team_dict = {name: id for id, name in team_id}
@@ -95,25 +95,50 @@ def live_update():
         print('No games today')
     return today_player_ids, id, game_time
 
+# Retrieves a list of teams playing today and their game IDs
+def today_games():
+    teams_playing_today = []
+    teams_playing_ids = []
+    game_times = []
+    for games in Game.objects.all():
+        date_string = games.date
+        utc_time = datetime.strptime(date_string, "%Y-%m-%dT%H:%MZ")
+        utc_time = utc_time.replace(tzinfo=pytz.UTC)
+        central_time = utc_time.astimezone(pytz.timezone("US/Central"))
+
+        today = datetime.now(pytz.timezone("US/Central")).date()
+
+        # comment in or out to simulate, change today to specific_date in if statement
+        #specific_date = date(2024, 9, 9)
+
+        if central_time.date() == today:
+            teams_playing_ids.append(games.id)
+            teams_playing_today.extend([games.home_team, games.away_team])
+            time = central_time
+            game_times.append(time)
+
+    game_times.sort()
+    if game_times:
+        earliest_time = game_times[0]
+    else:
+        earliest_time = 0
+
+    # comment in or out to simululate, change in return statement, earliest time to time
+    #time = datetime.now(pytz.timezone("US/Central")) + timedelta(minutes=1)
+
+    return teams_playing_today, teams_playing_ids, earliest_time
+
 # Updates player status and game data once a minute if there are games today
 def update_player_status1(today_player_ids, game_id):
 
 #___________Game Live Update____________
 
     print('its doing something')
+    print(game_id)
+    print('payer', today_player_ids)
     for ids in game_id:
-        url = f'https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event={ids}'
-        response = requests.get(url)
-
-        # Handle API response and log results
-        if response.status_code == 200:
-            print("✅ Successfully fetched data! Parsing response...")
-        else:
-            print(f"❌ Error {response.status_code}: {response.text}")
-            return
-
         # Parse game data from the API
-        response_data = response.json()
+        response_data = game_details(ids)
         drives = response_data.get('drives', {})
         plays_list = drives.get('current', []) if 'current' in drives else drives.get('previous', [])
 
@@ -129,15 +154,7 @@ def update_player_status1(today_player_ids, game_id):
                     text = last_play.get('text', 'N/A')
                     break
         
-        teamz = []
-        box = response_data.get('boxscore',{}).get('teams', [])
-        for x in box:
-            if 'team' in x:
-                y = x.get('team', {})
-                z = y.get('name', 0)
-                teamz.append(z)
         week = response_data.get('header', {}).get('week', 0)
-
         # Update or create Game object with live data
         Game.objects.update_or_create(
             id=ids,
@@ -152,20 +169,93 @@ def update_player_status1(today_player_ids, game_id):
         obj = Game.objects.get(id = ids)
         print(vars(obj))
 
+        teamz = []
+        box = response_data.get('boxscore',{}).get('teams', [])
+        for x in box:
+            if 'team' in x:
+                y = x.get('team', {})
+                z = y.get('name', 0)
+                teamz.append(z)
+
 #___________Player Live Update____________
 
+        
         for id in today_player_ids:
-            if Player.objects.get(id = id).team not in teamz:
-                continue
             players_team = Player.objects.get(id=id).team
             team_number = team_dict.get(players_team)
-            stats = get_stats(ids, team_number, id)
+
             first = Player.objects.get(id=id).firstName
             last = Player.objects.get(id=id).lastName
-            print(first, ' ', last)
-            if stats == 1:
+
+            if players_team not in teamz:
                 continue
+            
+            # Call 2 different functions to get 1. player stats for game 2. team defensive stats for game
+
+            print(first, ' ', last)
+
+            if Player.objects.get(id=id).position == 'DEF':
+                player_instance = Player.objects.get(id=id)
+                game_instance = Game.objects.get(id=ids)
+
+                def_stats_json = get_def_stats(ids, team_number)
+                if def_stats_json == 1:
+                    continue
+                categ = def_stats_json.get('splits', {}).get('categories', [])
+                for c in categ:
+                    if c.get('name', '') == 'general':
+                        ff = c.get('stats', [])
+                        for f in ff:
+                            if f.get('name', '') == 'fumblesForced':
+                                forc_fum = f.get('value', 0)
+                                break
+                    elif c.get('name', '') == 'defensive':
+                        def_stats = c.get('stats', [])
+                        for defs in def_stats:
+                            if defs.get('name','') == 'sacks':
+                                def_sacks = defs.get('value',0)
+                            elif defs.get('name', '') == 'safeties':
+                                def_saf = defs.get('value', 0)
+                            elif defs.get('name', '') == 'defensiveTouchdowns':
+                                def_td = defs.get('value', 0)
+                            elif defs.get('name', '') == 'pointsAllowed':
+                                points_allowed = defs.get('value', 0)
+                    elif c.get('name','') == 'defensiveInterceptions':
+                        def_int_stats = c.get('stats', [])
+                        for int in def_int_stats:
+                            if int.get('name', '') == 'interceptions':
+                                def_ints = int.get('value',0)
+                                break
+                    elif c.get('name', '') == 'returning':
+                        def_ret = c.get('stats', [])
+                        for r in def_ret:
+                            if r.get('name', '') == 'defFumbleReturns':
+                                fumble_rec = r.get('value', 0)
+                                break
+
+                fantasy_pts = fantasy_point_def(def_td, def_ints, fumble_rec, forc_fum, def_saf, def_sacks, points_allowed)
+                
+                Def_Stats.objects.update_or_create(
+                    player = player_instance,
+                    game = game_instance,
+                    defaults={
+                        'location': first,
+                        'team': last,
+                        'week': week,
+                        'pts_allowed': points_allowed,
+                        'inter': def_ints,
+                        'sacks': def_sacks,
+                        'safties': def_saf,
+                        'touchdowns': def_td,
+                        'forc_fum': forc_fum,
+                        'fumble_rec': fumble_rec,
+                        'total_fantasy_points': fantasy_pts
+                    }
+                )
             else:
+                stats = get_stats(ids, team_number, id)
+                if stats == 1:
+                    continue
                 extra_points_attempts=extra_points_made=fg_attempts=fg_made=fg_perc=kick_1_19=kick_20_29=kick_30_39=kick_40_49=kick_50 = 0
                 competition = stats.get('splits', {}).get('categories', [])
                 for cat in competition:
@@ -188,6 +278,8 @@ def update_player_status1(today_player_ids, game_id):
                                 ints = passi.get('value', 0)
                             elif passi.get('name', '') == 'sacks':
                                 sacks = passi.get('value', 0)
+                            elif passi.get('name', '') == 'twoPtPass':
+                                pass_2pt = passi.get('value', 0)
                             elif passi.get('name', '') == 'passingFumbles':
                                 passing_fumbles = passi.get('value', 0)
                     elif cat.get('name', '') == 'rushing':
@@ -201,6 +293,8 @@ def update_player_status1(today_player_ids, game_id):
                                 avg_rush_yards_perCarry = rush.get('value', 0)
                             elif rush.get('name', '') == 'rushingTouchdowns':
                                 rush_tds = rush.get('value', 0)
+                            elif rush.get('name', '') == 'twoPtRush':
+                                rush_2pt = rush.get('value', 0)
                             elif rush.get('name', '') == 'rushingFumbles':
                                 rush_fumbles = rush.get('value', 0)
                     elif cat.get('name', '') == 'receiving':
@@ -216,12 +310,14 @@ def update_player_status1(today_player_ids, game_id):
                                 avg_recieving_yards_perCatch = rec.get('value', 0)
                             elif rec.get('name', '') == 'receivingTouchdowns':
                                 receiving_tds = rec.get('value', 0)
+                            elif rec.get('name', '') == 'twoPtReception':
+                                receiving_2pt = rec.get('value', 0)
                             elif rec.get('name', '') == 'receivingFumbles':
                                 receiving_fumbles = rec.get('value', 0)
                     elif cat.get('name', '') == 'kicking':
                         kicking_stats = cat.get('stats', [])
                         for kick in kicking_stats:
-                            if kick.get('name', '') == 'fgfieldGoalsMade1_191_19':
+                            if kick.get('name', '') == 'fieldGoalsMade1_19':
                                 kick_1_19 = kick.get('value', 0)
                             elif kick.get('name', '') == 'fieldGoalsMade20_29':
                                 kick_20_29 = kick.get('value', 0)
@@ -241,38 +337,56 @@ def update_player_status1(today_player_ids, game_id):
                                 fg_perc = kick.get('value', 0)
                             elif kick.get('name', '') == 'fieldGoalsMade':
                                 fg_made = kick.get('value', 0)
-                
-                receiving_fumbles = int(receiving_fumbles if receiving_fumbles else 0)
-                rush_fumbles = int(rush_fumbles if rush_fumbles else 0)
-                qb_fumbles = int(passing_fumbles if passing_fumbles else 0)
+                    elif cat.get('name', '') == 'returning':
+                        return_stats = cat.get('stats', [])
+                        for ret in return_stats:
+                            if ret.get('name', '') == 'kickReturnTouchdowns':
+                                kick_return_td = ret.get('value', 0)
+                            elif ret.get('name', '') == 'puntReturnTouchdowns':
+                                punt_return_td = ret.get('value', 0)
 
-                if Player.objects.get(id=id).position == 'QB':
-                    fum = qb_fumbles + rush_fumbles
-                    fum = str(fum)
+                return_tds = kick_return_td + punt_return_td
+
+                if Player.objects.get(id=id).position == 'Quarterback':
+                    fum = passing_fumbles + rush_fumbles
+                    pt2 = rush_2pt + pass_2pt
                     Player_Stats.objects.update_or_create(
-                        id=id,
+                        player=player_instance,
+                        game=game_instance,
                         defaults={
-                            'fumbles': fum
+                            'fumbles': fum,
+                            'two_pt_made': pt2
                         })
-                elif Player.objects.get(id=id).position == 'RB' or Player.objects.get(id=id).position == 'K':
-                    rush_fumbles = str(rush_fumbles)
+                elif Player.objects.get(id=id).position == 'Running Back' or Player.objects.get(id=id).position == 'Place kicker':
+                    fum = rush_fumbles
                     Player_Stats.objects.update_or_create(
-                        id=id,
+                        player=player_instance,
+                        game=game_instance,
                         defaults={
-                            'fumbles': rush_fumbles
+                            'fumbles': fum,
+                            'two_pt_made': rush_2pt
                         })
-                elif Player.objects.get(id=id).position == 'WR' or Player.objects.get(id=id).position == 'TE':
-                    receiving_fumbles = str(receiving_fumbles)
+                elif Player.objects.get(id=id).position == 'Wide Receiver' or Player.objects.get(id=id).position == 'Tight End':
+                    fum = receiving_fumbles
                     Player_Stats.objects.update_or_create(
-                        id=id,
+                        player=player_instance,
+                        game=game_instance,
                         defaults={
-                            'fumbles': receiving_fumbles
+                            'fumbles': fum,
+                            'two_pt_made': receiving_2pt
                         })
+                
+                if Player.objects.get(id=id).position != 'Place kicker':
+                    fantasy = fantasy_point_calculator_offense(pass_yards, pass_tds, ints, rush_yards, rush_tds, catches, recieving_yards, receiving_tds, return_tds, fum)
+                elif Player.objects.get(id=id).position == 'Place kicker':
+                    fantasy = fantasy_point_kicker(extra_points_made, kick_1_19, kick_20_29, kick_30_39, kick_40_49, kick_50)
+
                 firstName = Player.objects.get(id=id).firstName
                 lastName = Player.objects.get(id=id).lastName
+
                 Player_Stats.objects.update_or_create(
-                    id=id,
-                    game_id=ids,
+                    player=player_instance,
+                    game=game_instance,
                     defaults={
                         'firstName': firstName,
                         'lastName': lastName,
@@ -294,6 +408,7 @@ def update_player_status1(today_player_ids, game_id):
                         'rush_yards': rush_yards,
                         'avg_rush_yards_perCarry': avg_rush_yards_perCarry,
                         'rush_tds': rush_tds,
+                        'return_td': return_tds,
                         'kick_1_19': kick_1_19,
                         'kick_20_29': kick_20_29,
                         'kick_30_39': kick_30_39,
@@ -304,13 +419,13 @@ def update_player_status1(today_player_ids, game_id):
                         'fg_made': fg_made,
                         'extra_points_made': extra_points_made,
                         'extra_points_attempts': extra_points_attempts,
+                        'total_fantasy_points': fantasy
                     }
 
                 )
                 print("Player stats for a game added")
 
     print('round done')
-
 
     # Update player statuses
     # for id in today_player_ids:
@@ -324,49 +439,51 @@ def update_player_status1(today_player_ids, game_id):
     #         id=id,
     #         defaults={'status': status}
     #     )
-# teamzzzz = ['Ravens', 'Chiefs', 'Packers', 'Eagles', 'Steelers', 'Falcons', 'Cardinals', 'Bills', 'Titans', 'Bears', 'Patriots', 'Bengals']
-# player_idz = []
-# for player in Player.objects.all():
-#     if player.team in teamzzzz:
-#         if player.status != 'Active':
-#             continue
-#         else:
-#             player_idz.append(player.id)
-# x=update_player_status1(player_idz,[401671789,401671805,401671617,401671628,401671719,401671744])
 
 
-# Retrieves a list of teams playing today and their game IDs
-def today_games():
-    teams_playing_today = []
-    teams_playing_ids = []
-    game_times = []
-    for games in Game.objects.all():
-        date_string = games.date
-        utc_time = datetime.strptime(date_string, "%Y-%m-%dT%H:%MZ")
-        utc_time = utc_time.replace(tzinfo=pytz.UTC)
-        central_time = utc_time.astimezone(pytz.timezone("US/Central"))
+def fantasy_point_calculator_offense(pass_y, pass_td, pass_i, rush_y ,rush_td, rec, rec_y, rec_td, ret_td, fums):
+    pass_y_pt = pass_y * .04
+    pass_td_pt = pass_td * 4
+    pass_i_pt = pass_i * -2
+    rush_y_pt = rush_y * .10
+    touch = (rush_td + rec_td + ret_td) * 6
+    rec_pt = rec * 1
+    rec_y_pt = rec_y * .10
+    fums * -2
+    fantasy_points = pass_y_pt + pass_td_pt + pass_i_pt + rush_y_pt + touch + rec_pt + rec_y_pt
+    return fantasy_points
 
-        today = datetime.now(pytz.timezone("US/Central")).date()
+def fantasy_point_kicker(extra, one, two, three, four, five):
+    extra_pt = extra
+    first = (one + two) * 3
+    second = (three + four) * 4
+    last = (five) * 5
+    fantasy_points = extra_pt + first + second + last
+    return fantasy_points
 
-        # comment in or out to simulate, change today to specific_date
-        # specific_date = date(2024, 9, 9)
-
-        if central_time.date() == today:
-            teams_playing_ids.append(games.id)
-            teams_playing_today.extend([games.home_team, games.away_team])
-            time = central_time
-            game_times.append(time)
-
-    game_times.sort()
-    if game_times:
-        earliest_time = game_times[0]
+def fantasy_point_def(def_spc_td, int, fr, ff, saf, sack, pts_a):
+    def_spc_td_pt = def_spc_td * 6
+    int_pt = int * 2
+    fr_pt = fr * 2
+    ff_pt = ff * 0.5
+    saf_pt = saf * 2
+    sack_pt = sack * 1
+    if pts_a == 0:
+        pts_a_pt = 10
+    elif 1 <= pts_a <=6:
+        pts_a_pt = 7
+    elif 7 <= pts_a <= 13:
+        pts_a_pt = 4
+    elif 14 <= pts_a <= 20:
+        pts_a_pt = 1
+    elif 21 <= pts_a <=27:
+        pts_a_pt = 0
+    elif 28 <= pts_a <= 34:
+        pts_a_pt = -1
     else:
-        earliest_time = 0
-
-    # comment in or out to simululate, change in return statement, earliest time to time
-    # time = datetime.now(pytz.timezone("US/Central")) + timedelta(minutes=2)
-
-    return teams_playing_today, teams_playing_ids, earliest_time
+        pts_a_pt = -4
+    fantasy_points = def_spc_td_pt + int_pt + fr_pt + ff_pt + saf_pt + sack_pt + pts_a_pt
+    return fantasy_points
 
 # Updates game data for the 2024 season
 def update_game_data():
@@ -403,5 +520,3 @@ def update_game_data():
                     }
                 )
                 print("Game data added")
-
-
