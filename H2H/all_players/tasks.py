@@ -6,7 +6,7 @@ from datetime import datetime, date, timedelta
 
 # Ensure Django settings are loaded
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "head2head.settings")
-django.setup()  # Initializes Django (uncomment if required to load Django models)
+#django.setup()  # Initializes Django (uncomment if required to load Django models)
 
 from .espn_api import fetch_espn_data, get_game_stats, fetch_player_positions, get_stats, game_details, get_def_stats, fetch_def_info
 from .models import Player, Game, Player_Stats, Def_Stats
