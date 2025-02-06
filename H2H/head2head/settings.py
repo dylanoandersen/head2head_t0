@@ -57,13 +57,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
-    'rest_framework',
-    'all_players',
-    'User',
     'corsheaders',
     'rest_framework_simplejwt',
+    'rest_framework',
+
+    'all_players',
     'User',
+    
 
 ]
 
@@ -112,7 +112,7 @@ DATABASES = {
         'NAME': 'h2h',  # Replace with your database name
         'USER': 'dandersen',      # Replace with your MySQL username
         'PASSWORD': 'dylan3',  # Replace with your MySQL password
-        'HOST': '172.17.39.79',      # Replace with your IP address (e.g., 192.168.1.100)
+        'HOST': '172.17.53.31',      # Replace with your IP address (e.g., 192.168.1.100)
         'PORT': '3306',                # MySQL default port
     }
 } 
