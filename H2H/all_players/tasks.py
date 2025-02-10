@@ -6,7 +6,7 @@ from datetime import datetime, date, timedelta
 
 # Ensure Django settings are loaded
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "head2head.settings")
-django.setup()  # Initializes Django (uncomment if required to load Django models)
+#django.setup()  # Initializes Django (uncomment if required to load Django models)
 
 from .espn_api import fetch_espn_data, get_game_stats, fetch_player_positions, get_stats, game_details, get_def_stats, fetch_def_info
 from .models import Player, Game, Player_Stats, Def_Stats
@@ -135,7 +135,7 @@ def update_player_status1(today_player_ids, game_id):
 
     print('its doing something')
     print(game_id)
-    print('payer', today_player_ids)
+
     for ids in game_id:
         # Parse game data from the API
         response_data = game_details(ids)
@@ -144,15 +144,13 @@ def update_player_status1(today_player_ids, game_id):
 
         # Extract play-by-play details
         home_score, away_score, text = 0, 0, "No plays available"
-        for play_data in reversed(plays_list):
-            if 'plays' in play_data:
-                plays = play_data['plays']
-                if plays:
-                    last_play = plays[-1]
-                    away_score = last_play.get('awayScore', 0)
-                    home_score = last_play.get('homeScore', 0)
-                    text = last_play.get('text', 'N/A')
-                    break
+
+        plays = plays_list.get("plays", [])
+        if plays:
+            last_play = plays[-1]
+            away_score = last_play.get('awayScore', 0)
+            home_score = last_play.get('homeScore', 0)
+            text = last_play.get('text', 'N/A')
         
         week = response_data.get('header', {}).get('week', 0)
         # Update or create Game object with live data
@@ -193,10 +191,10 @@ def update_player_status1(today_player_ids, game_id):
             # Call 2 different functions to get 1. player stats for game 2. team defensive stats for game
 
             print(first, ' ', last)
+            player_instance = Player.objects.get(id=id)
+            game_instance = Game.objects.get(id=ids)
 
             if Player.objects.get(id=id).position == 'DEF':
-                player_instance = Player.objects.get(id=id)
-                game_instance = Game.objects.get(id=ids)
 
                 def_stats_json = get_def_stats(ids, team_number)
                 if def_stats_json == 1:
@@ -256,7 +254,19 @@ def update_player_status1(today_player_ids, game_id):
                 stats = get_stats(ids, team_number, id)
                 if stats == 1:
                     continue
-                extra_points_attempts=extra_points_made=fg_attempts=fg_made=fg_perc=kick_1_19=kick_20_29=kick_30_39=kick_40_49=kick_50 = 0
+                                # Initialize all variables to 0 before use
+                extra_points_attempts = extra_points_made = fg_attempts = fg_made = fg_perc = 0
+                kick_1_19 = kick_20_29 = kick_30_39 = kick_40_49 = kick_50 = 0
+                punt_return_td = kick_return_td = 0
+
+                pass_att = completions = completions_perc = pass_yards = avg_pass_yards_completions = 0
+                pass_tds = ints = sacks = pass_2pt = passing_fumbles = 0
+
+                carrys = rush_yards = avg_rush_yards_perCarry = rush_tds = rush_2pt = rush_fumbles = 0
+
+                catches = targets = recieving_yards = avg_recieving_yards_perCatch = 0
+                receiving_tds = receiving_2pt = receiving_fumbles = 0
+
                 competition = stats.get('splits', {}).get('categories', [])
                 for cat in competition:
                     if cat.get('name', '') == 'passing':
@@ -426,6 +436,7 @@ def update_player_status1(today_player_ids, game_id):
                 print("Player stats for a game added")
 
     print('round done')
+    print(obj.home_score, ' ', obj.away_score, ' ', obj.current_play)
 
     # Update player statuses
     # for id in today_player_ids:
