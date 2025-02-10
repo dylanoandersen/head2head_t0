@@ -144,9 +144,15 @@ def get_def_stats(game_id, team_id):
         print(f"❌ Error {response.status_code}: {response.text}")
         return pp
 
+def get_pts_proj(week):
+    url = f'https://api.sportsdata.io/v3/nfl/projections/json/PlayerGameProjectionStatsByWeek/2024POST/{week}?key=85266f5b9d954fbebb82673d6d417982'
+    response = requests.get(url)
 
-
-# data = get_game_stats(2025)
-# if data:
-#      with open("api.txt", "w") as file:
-#         json.dump(data, file, indent=4)  # Saves JSON data to file with indentation
+    if response.status_code == 200:
+        print("✅ Successfully fetched data! Parsing response... of STATZZZZZZZ of")
+        stats = response.json()
+        return stats
+    else:
+        pp = 1
+        print(f"❌ Error {response.status_code}: {response.text}")
+        return pp

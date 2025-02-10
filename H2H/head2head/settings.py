@@ -57,14 +57,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    
     'corsheaders',
     'rest_framework_simplejwt',
     'rest_framework',
-
     'all_players',
     'User',
-    
-
 ]
 
 # allows django to talk to this address. Local for now.
@@ -112,12 +110,10 @@ DATABASES = {
         'NAME': 'h2h',  # Replace with your database name
         'USER': 'dandersen',      # Replace with your MySQL username
         'PASSWORD': 'dylan3',  # Replace with your MySQL password
-        'HOST': '127.0.0.1',      # Replace with your IP address (e.g., 192.168.1.100)
+        'HOST': '10.0.0.237',      # Replace with your IP address (e.g., 192.168.1.100)
         'PORT': '3306',                # MySQL default port
     }
 } 
-
-
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
