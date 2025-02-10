@@ -34,4 +34,4 @@ urlpatterns = [
     path('api/verifyToken/', VerifyTokenView.as_view(), name='verify_token'),
 
 ]
-# start_scheduler()
+start_scheduler()
