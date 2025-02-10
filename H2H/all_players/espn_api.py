@@ -145,7 +145,7 @@ def get_def_stats(game_id, team_id):
         return pp
 
 def get_pts_proj(week):
-    url = f'https://api.sportsdata.io/v3/nfl/projections/json/PlayerGameProjectionStatsByWeek/2024POST/{week}?key=85266f5b9d954fbebb82673d6d417982'
+    url = f'https://api.sportsdata.io/v3/nfl/projections/json/PlayerGameProjectionStatsByWeek/2024REG/{week}?key=85266f5b9d954fbebb82673d6d417982'
     response = requests.get(url)
 
     if response.status_code == 200:
