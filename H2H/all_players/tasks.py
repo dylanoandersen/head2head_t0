@@ -268,10 +268,21 @@ def update_player_status1(today_player_ids, game_id):
 
         # Extract play-by-play details
         home_score, away_score, text = 0, 0, "No plays available"
-        if 'current' in drives:
+        try:
             plays = plays_list.get("plays", [])
-        else:
-            plays = plays_list[0].get("plays", [])
+        except:
+            if isinstance(plays_list, list):  
+                last_plays = None
+
+                for item in plays_list:  
+                    if isinstance(item, dict) and "plays" in item:
+                        last_plays = item["plays"]  # Keep updating with the latest "plays" list
+
+                plays = last_plays if last_plays is not None else []
+            else:
+                print("Error: plays_list is not a list")
+                plays = []
+
         if plays:
             last_play = plays[-1]
             away_score = last_play.get('awayScore', 0)
