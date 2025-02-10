@@ -11,7 +11,7 @@ url2 = 'https://api.sportsdata.io/v3/nfl/projections/json/PlayerGameProjectionSt
 url3 = 'https://api.sportsdata.io/v3/nfl/odds/json/BettingPlayerPropsByScoreID/18436?key=85266f5b9d954fbebb82673d6d417982'
 
 # game details
-url4 = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=401671889'
+url4 = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/summary?event=401671696'
 
 response = requests.get(url4)
 response1 = response.json()
