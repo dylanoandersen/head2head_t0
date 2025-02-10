@@ -57,13 +57,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
+    
+    'corsheaders',
+    'rest_framework_simplejwt',
     'rest_framework',
     'all_players',
     'User',
-    'corsheaders',
-    'rest_framework_simplejwt',
-
 ]
 
 # allows django to talk to this address. Local for now.
