@@ -17,5 +17,5 @@ response = requests.get(url4)
 response1 = response.json()
 
 if response1:
-     with open("maybeNEeeeee1W.txt", "w") as file:
+     with open("gamz.txt", "w") as file:
         json.dump(response1, file, indent=4)  # Saves JSON data to file with indentation

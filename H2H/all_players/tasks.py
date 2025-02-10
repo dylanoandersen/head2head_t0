@@ -6,13 +6,47 @@ from datetime import datetime, date, timedelta
 
 # Ensure Django settings are loaded
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "head2head.settings")
-#django.setup()  # Initializes Django (uncomment if required to load Django models)
+django.setup()  # Initializes Django (uncomment if required to load Django models)
 
-from .espn_api import fetch_espn_data, get_game_stats, fetch_player_positions, get_stats, game_details, get_def_stats, fetch_def_info
+from .espn_api import fetch_espn_data, get_game_stats, fetch_player_positions, get_stats, game_details, get_def_stats, get_pts_proj, fetch_def_info
 from .models import Player, Game, Player_Stats, Def_Stats
 
 team_id = [(1, 'Falcons'), (2, 'Bills'), (3, 'Bears'), (4, 'Bengals'), (5, 'Browns'), (6, 'Cowboys'), (7, 'Broncos'), (8, 'Lions'), (9, 'Packers'), (34, 'Texans'), (11, 'Colts'), (30, 'Jaguars'), (12, 'Chiefs'), (14, 'Rams'), (24, 'Chargers'), (15, 'Dolphins'), (16, 'Vikings'), (17, 'Patriots'), (18, 'Saints'), (19, 'Giants'), (20, 'Jets'), (13, 'Raiders'), (21, 'Eagles'), (23, 'Steelers'), (25, '49ers'), (26, 'Seahawks'), (27, 'Buccaneers'), (10, 'Titans'), (22, 'Cardinals'), (28, 'Commanders'), (33, 'Ravens'), (29, 'Panthers')]
 team_dict = {name: id for id, name in team_id}
+nfl_teams = {
+    "ARI": "Arizona Cardinals",
+    "ATL": "Atlanta Falcons",
+    "BAL": "Baltimore Ravens",
+    "BUF": "Buffalo Bills",
+    "CAR": "Carolina Panthers",
+    "CHI": "Chicago Bears",
+    "CIN": "Cincinnati Bengals",
+    "CLE": "Cleveland Browns",
+    "DAL": "Dallas Cowboys",
+    "DEN": "Denver Broncos",
+    "DET": "Detroit Lions",
+    "GB": "Green Bay Packers",
+    "HOU": "Houston Texans",
+    "IND": "Indianapolis Colts",
+    "JAX": "Jacksonville Jaguars",
+    "KC": "Kansas City Chiefs",
+    "LV": "Las Vegas Raiders",
+    "LAC": "Los Angeles Chargers",
+    "LAR": "Los Angeles Rams",
+    "MIA": "Miami Dolphins",
+    "MIN": "Minnesota Vikings",
+    "NE": "New England Patriots",
+    "NO": "New Orleans Saints",
+    "NYG": "New York Giants",
+    "NYJ": "New York Jets",
+    "PHI": "Philadelphia Eagles",
+    "PIT": "Pittsburgh Steelers",
+    "SF": "San Francisco 49ers",
+    "SEA": "Seattle Seahawks",
+    "TB": "Tampa Bay Buccaneers",
+    "TEN": "Tennessee Titans",
+    "WAS": "Washington Commanders"
+}
 
 # Updates ESPN player data once a year, ensuring the database has the latest active players
 def update_espn_data():
@@ -73,13 +107,65 @@ def update_player_positions():
         )
         print("Player position added")
 
+# Get all teams DEF
+# x = fetch_def_info()
+# for z,y in x.items():
+#     if y.get('position') == 'DEF':
+#         print('found DEF')
+#         Player.objects.update_or_create(
+#             id = y.get('player_id'),
+#             defaults={
+#                 'lastName': y.get('last_name'),
+#                 'firstName': y.get('first_name'),
+#                 'position': y.get('position'),
+#                 'team': y.get('last_name')
+#             }
+#         )
+
 def delete_positionsNotNeeded():
     for players in Player.objects.all():
-        if players.position == 'Quarterback' or players.position == 'Running Back' or players.position == 'Wide Receiver' or players.position == 'Tight End' or players.position == 'Place kicker' or players.position == 'Punter':
+        if players.position == 'Quarterback' or players.position == 'Running Back' or players.position == 'Wide Receiver' or players.position == 'Tight End' or players.position == 'Place kicker' or players.position == 'DEF':
             continue
         else:
             print("player position: ", players.position)
             players.delete()
+
+# Updates game data for the 2024 season
+def update_game_data():
+    season_2024 = [2024, 2025]
+    for year in season_2024:
+        data = get_game_stats(year)
+        events = data.get("events", [])
+        for event in events:
+            id = event.get("id", "")
+            date = event.get("date", "")
+            season_type = event.get("season", {}).get("slug", "")
+            if event.get("season", {}).get("year", 0) != 2024:
+                continue
+            for competition in event.get("competitions", []):
+                home_team, away_team, home_score, away_score = "", "", "", ""
+                for competitor in competition.get("competitors", []):
+                    if competitor.get("homeAway") == "home":
+                        home_team = competitor.get("team", {}).get("displayName", "")
+                        home_score = competitor.get("score", "")
+                    else:
+                        away_team = competitor.get("team", {}).get("displayName", "")
+                        away_score = competitor.get("score", "")
+
+                # Update or create Game data
+                Game.objects.update_or_create(
+                    id=id,
+                    defaults={
+                        'season_type': season_type,
+                        'date': date,
+                        'home_team': home_team,
+                        'away_team': away_team,
+                        'home_score': home_score,
+                        'away_score': away_score
+                    }
+                )
+                print("Game data added")
+#_________________________________________________________________________________________________________________
 
 # Runs daily to check if there are any games scheduled for today
 def live_update():
@@ -100,6 +186,7 @@ def today_games():
     teams_playing_today = []
     teams_playing_ids = []
     game_times = []
+    #projectionz(1)
     for games in Game.objects.all():
         date_string = games.date
         utc_time = datetime.strptime(date_string, "%Y-%m-%dT%H:%MZ")
@@ -109,9 +196,9 @@ def today_games():
         today = datetime.now(pytz.timezone("US/Central")).date()
 
         # comment in or out to simulate, change today to specific_date in if statement
-        #specific_date = date(2024, 9, 9)
+        specific_date = date(2024, 9, 9)
 
-        if central_time.date() == today:
+        if central_time.date() == specific_date:
             teams_playing_ids.append(games.id)
             teams_playing_today.extend([games.home_team, games.away_team])
             time = central_time
@@ -124,9 +211,46 @@ def today_games():
         earliest_time = 0
 
     # comment in or out to simululate, change in return statement, earliest time to time
-    #time = datetime.now(pytz.timezone("US/Central")) + timedelta(minutes=1)
+    time = datetime.now(pytz.timezone("US/Central")) + timedelta(minutes=1)
 
-    return teams_playing_today, teams_playing_ids, earliest_time
+    return teams_playing_today, teams_playing_ids, time
+
+def projectionz(week):
+    data = get_pts_proj(week)
+    for d in data:
+        name = d.get('Name','')
+        first_name = name.split(" ")[0]
+
+        if d.get('HomeOrAway','') == 'HOME':
+            homeTeam = d.get('Team','')
+            awayTeam = d.get('Opponent','')
+            homeTeam = nfl_teams.get(homeTeam,"Unknown Team")
+            awayTeam = nfl_teams.get(awayTeam,"Unknown Team")
+        elif d.get('HomeOrAway','') == 'AWAY':
+            homeTeam = d.get('Opponent','')
+            awayTeam = d.get('Team','')
+            homeTeam = nfl_teams.get(homeTeam,"Unknown Team")
+            awayTeam = nfl_teams.get(awayTeam,"Unknown Team")
+
+        playrz = Player.objects.filter(firstName = first_name)
+        if playrz:
+            for player in playrz:
+                if player.lastName in name:
+                    player_inst = Player.objects.get(id=player.id)
+                    game_inst = Game.objects.get(home_team = homeTeam, away_team = awayTeam)
+                    proj = d.get('FantasyPointsDraftKings','')
+                    Player_Stats.objects.update_or_create(
+                        player=player_inst,
+                        game=game_inst,
+                        defaults={
+                            'firstName': player_inst.firstName,
+                            'lastName': player_inst.lastName,
+                            'proj_fantasy': proj
+                        }
+                    )
+                else:
+                    continue
+
 
 # Updates player status and game data once a minute if there are games today
 def update_player_status1(today_player_ids, game_id):
@@ -144,8 +268,10 @@ def update_player_status1(today_player_ids, game_id):
 
         # Extract play-by-play details
         home_score, away_score, text = 0, 0, "No plays available"
-
-        plays = plays_list.get("plays", [])
+        if 'current' in drives:
+            plays = plays_list.get("plays", [])
+        else:
+            plays = plays_list[0].get("plays", [])
         if plays:
             last_play = plays[-1]
             away_score = last_play.get('awayScore', 0)
@@ -495,39 +621,3 @@ def fantasy_point_def(def_spc_td, int, fr, ff, saf, sack, pts_a):
         pts_a_pt = -4
     fantasy_points = def_spc_td_pt + int_pt + fr_pt + ff_pt + saf_pt + sack_pt + pts_a_pt
     return fantasy_points
-
-# Updates game data for the 2024 season
-def update_game_data():
-    season_2024 = [2024, 2025]
-    for year in season_2024:
-        data = get_game_stats(year)
-        events = data.get("events", [])
-        for event in events:
-            id = event.get("id", "")
-            date = event.get("date", "")
-            season_type = event.get("season", {}).get("slug", "")
-            if event.get("season", {}).get("year", 0) != 2024:
-                continue
-            for competition in event.get("competitions", []):
-                home_team, away_team, home_score, away_score = "", "", "", ""
-                for competitor in competition.get("competitors", []):
-                    if competitor.get("homeAway") == "home":
-                        home_team = competitor.get("team", {}).get("displayName", "")
-                        home_score = competitor.get("score", "")
-                    else:
-                        away_team = competitor.get("team", {}).get("displayName", "")
-                        away_score = competitor.get("score", "")
-
-                # Update or create Game data
-                Game.objects.update_or_create(
-                    id=id,
-                    defaults={
-                        'season_type': season_type,
-                        'date': date,
-                        'home_team': home_team,
-                        'away_team': away_team,
-                        'home_score': home_score,
-                        'away_score': away_score
-                    }
-                )
-                print("Game data added")
