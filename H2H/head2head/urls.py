@@ -33,5 +33,9 @@ urlpatterns = [
     path('user/token/refresh', TokenRefreshView.as_view(), name='refresh'),
     path('user-auth/', include('rest_framework.urls')),
     path('search/', views.search_player, name='search_player'),
+    path('create-league/', views.create_league, name='create_league'),
+    path('league/<int:league_id>/', views.view_league, name='view_league'),
+    path('league/<int:league_id>/add-player/', views.add_player_to_league, name='add_player_to_league'),
+    
 
 ]

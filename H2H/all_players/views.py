@@ -1,13 +1,16 @@
-from django.shortcuts import render
-from django.http import JsonResponse
+from django.shortcuts import render, redirect,  get_object_or_404
+from django.http import JsonResponse, HttpResponse
 from .models import Player
-from .serializers import PlayerInfoSerializer
+from .serializers import PlayerInfoSerializer, LeagueSerializer
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status, generics
 from rest_framework.viewsets import ModelViewSet
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
+from .models import League
+from .forms import LeagueForm
+from django.contrib.auth.models import User
 
 import json
 
@@ -33,6 +36,55 @@ def player_info(request,id):
         serializer = PlayerInfoSerializer(player)
         return Response({"Player": serializer.data})
 
+
+@csrf_exempt
+def create_league(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)  # If you're sending JSON, parse it
+        form = LeagueForm(data)
+        if form.is_valid():
+            # Save the league instance
+            league = form.save(commit=False)
+            # Ensure the owner is the logged-in user (if logged in)
+            if request.user.is_authenticated:
+                league.owner = request.user.player  # Assuming Player is linked with the user model
+            league.save()
+            
+            # Return a successful response
+            return JsonResponse({'message': 'League created successfully', 'league_id': league.id}, status=201)
+        return JsonResponse({'error': 'Invalid data'}, status=400)
+    return JsonResponse({'error': 'Invalid request method'}, status=405)
+
+def view_league(request, league_id):
+    league = get_object_or_404(League, id=league_id)
+    return render(request, 'view_league.html', {'league': league})
+
+def add_player_to_league(request, league_id):
+    league = get_object_or_404(League, id=league_id)
+    if request.method == 'POST':
+        player_id = request.POST.get('player_id')  # Assume player ID is passed in POST
+        player = get_object_or_404(Player, id=player_id)
+        league.players.add(player)  # Add player to the league
+        return redirect('view_league', league_id=league.id)
+    return HttpResponse(status=400)  # Invalid request
+
+@api_view(['POST'])
+def create_league_api(request):
+    if request.method == 'POST':
+        serializer = LeagueSerializer(data=request.data)
+        if serializer.is_valid():
+            # Look up the user by username
+            user = User.objects.get(username=request.data['owner'])
+            serializer.validated_data['owner'] = user  # Assign the actual user object
+
+            league = serializer.save()
+            return Response({
+                'id': league.id,
+                'name': league.name,
+                'owner': league.owner.id,  # Return the owner's id
+                'settings': league.settings,
+            }, status=201)  # League created successfully
+        return Response(serializer.errors, status=400)  # Return errors if invalid
 
 @csrf_exempt
 def search_player(request):

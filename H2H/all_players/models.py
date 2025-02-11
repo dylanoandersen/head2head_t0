@@ -69,3 +69,33 @@ class Game(models.Model):
 
     def __str__(self):
         return f"{self.id} {self.home_team} vs {self.away_team} {self.date} {self.current_play}"
+
+
+class League(models.Model):
+    id = models.AutoField(primary_key=True)  # Unique identifier for the league
+    name = models.CharField(max_length=100)
+    owner = models.ForeignKey(Player, on_delete=models.CASCADE, related_name='owned_leagues')
+    players = models.ManyToManyField(Player, related_name='leagues', blank=True)  # Players that belong to the league
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"League: {self.name}, Owner: {self.owner.firstName} {self.owner.lastName}"
+
+class Team(models.Model):
+    id = models.AutoField(primary_key=True)  # Unique identifier for the team
+    name = models.CharField(max_length=100)
+    owner = models.ForeignKey(Player, related_name='teams_owned', on_delete=models.CASCADE)
+    league = models.ForeignKey(League, on_delete=models.CASCADE, related_name='teams')
+    players = models.ManyToManyField(Player, related_name='teams')
+    nfl_players = models.ManyToManyField('Player', related_name='nfl_teams', blank=True)  # Link to NFL players by their IDs
+    
+    def __str__(self):
+        return f"Team: {self.name}, Owner: {self.owner.firstName} {self.owner.lastName}"
+
+class LeagueSettings(models.Model):
+    league = models.OneToOneField(League, on_delete=models.CASCADE)
+    max_players = models.IntegerField(default=12)  # Max number of players
+    scoring_system = models.CharField(max_length=100, default='Standard')  # Example scoring system
+
+    def __str__(self):
+        return f"Settings for {self.league.name}"
