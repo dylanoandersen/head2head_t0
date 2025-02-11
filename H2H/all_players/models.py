@@ -16,6 +16,7 @@ class Player(models.Model):
 
     def __str__(self):
         return f"{self.id} {self.firstName} {self.lastName}"
+    
 class Game(models.Model):
     id = models.CharField(max_length=20, primary_key=True)
     season_type = models.CharField(max_length=100, default='0')

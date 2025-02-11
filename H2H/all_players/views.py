@@ -22,17 +22,28 @@ def allPlayer(request):
     else:
         print('Could not grab all players')
 
+# @api_view(['GET'])
+# def player_info(request,id):
+#     try:
+#         player = Player.objects.get(pk=id)
+#     except Player.DoesNotExist:
+#         return Response(status=status.HTTP_404_NOT_FOUND)
+
+#     if request.method == 'GET':
+#         serializer = PlayerInfoSerializer(player)
+#         return Response({"Player": serializer.data})
+
 @api_view(['GET'])
-def player_info(request,id):
+def player_info(request, id):
     try:
-        player = Player.objects.get(pk=id)
+        # Prefetch related player stats for this player
+        player = Player.objects.prefetch_related('player_stats_set').get(pk=id)
     except Player.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "Player not found"}, status=status.HTTP_404_NOT_FOUND)
 
     if request.method == 'GET':
         serializer = PlayerInfoSerializer(player)
         return Response({"Player": serializer.data})
-
 
 @csrf_exempt
 def search_player(request):
