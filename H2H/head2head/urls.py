@@ -21,6 +21,7 @@ from all_players import views
 from all_players.scheduler import start_scheduler
 from User.views import CreateUserView, VerifyTokenView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from all_players.views import LeagueListCreateView, LeagueDetailView, TeamListCreateView, TeamDetailView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -32,6 +33,11 @@ urlpatterns = [
     path('user-auth/', include('rest_framework.urls')),
     path('search/', views.search_player, name='search_player'),
     path('api/verifyToken/', VerifyTokenView.as_view(), name='verify_token'),
+    path('api/leagues/', LeagueListCreateView.as_view(), name='league-list-create'),
+    path('leagues/<int:pk>/', LeagueDetailView.as_view(), name='league-detail'),
+    path('teams/', TeamListCreateView.as_view(), name='team-list-create'),
+    path('teams/<int:pk>/', TeamDetailView.as_view(), name='team-detail'),
+    path('create_league/', views.create_league, name='create_league'),
 
 ]
-start_scheduler()
+#start_scheduler()
