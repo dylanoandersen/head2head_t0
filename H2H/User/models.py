@@ -30,3 +30,11 @@ class traditional_redraft(models.Model):  # Class names should be in PascalCase
 
     def __str__(self):
         return f"{self.title} {self.author}"
+
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    date_of_birth = models.DateField(null=True, blank=True)
+    profile_picture = models.ImageField(upload_to='profile_pictures/', null=True, blank=True)
+
+    def __str__(self):
+        return self.user.username

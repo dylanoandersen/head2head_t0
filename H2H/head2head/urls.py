@@ -19,19 +19,23 @@ from django.urls import path, include
 from all_players import views
 
 from all_players.scheduler import start_scheduler
-from User.views import CreateUserView, VerifyTokenView
+from User.views import register_user, VerifyTokenView, UserProfileView, CreateUserView, get_user_info, update_user_info
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('allPlayers/', views.allPlayer),
     path('playerInfo/<int:id>', views.player_info),
-    path('api/user/register', CreateUserView.as_view(), name='register'),
+    path('api/user/register/', register_user, name='register'),
+    path('create-user/', CreateUserView.as_view(), name='create_user'),
     path('user/token', TokenObtainPairView.as_view(), name='get_token'),
     path('user/token/refresh', TokenRefreshView.as_view(), name='refresh'),
     path('user-auth/', include('rest_framework.urls')),
     path('search/', views.search_player, name='search_player'),
     path('api/verifyToken/', VerifyTokenView.as_view(), name='verify_token'),
+    path('api/user/profile', UserProfileView.as_view(), name='user-profile'),
+    path('api/user/info/', get_user_info, name='get_user_info'),
+    path('api/user/update/', update_user_info, name='update_user_info'),
 
 ]
 start_scheduler()
