@@ -152,6 +152,41 @@ def search_player(request):
     
     return JsonResponse({"error": "Invalid request method"}, status=405)
 
+
+from django.http import JsonResponse
+
+from django.http import JsonResponse
+
+def search_league(request):
+    if request.method == "GET":
+        name_query = request.GET.get("name", "").strip()
+        print(f"Search Term: {name_query}")  # Log the search term
+
+        if not name_query:
+            return JsonResponse({"error": "No name provided"}, status=400)
+
+        # Ensure filtering works correctly
+        leagues = League.objects.filter(name__icontains=name_query)
+        print(f"Leagues Found: {list(leagues.values('id', 'name'))}")  # Log the filtered leagues
+
+        if not leagues.exists():
+            return JsonResponse({"results": []})
+
+        league_data = [
+            {
+                "id": league.id,
+                "name": league.name,
+                "owner": league.owner.username,
+                "draft_date": league.draft_date,
+            }
+            for league in leagues
+        ]
+
+        return JsonResponse({"results": league_data})
+
+    return JsonResponse({"error": "Invalid request method"}, status=405)
+
+
 @api_view(['POST'])
 def create_league(request):
     if request.method == 'POST':

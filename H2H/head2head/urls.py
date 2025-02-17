@@ -34,10 +34,12 @@ urlpatterns = [
     path('search/', views.search_player, name='search_player'),
     path('api/verifyToken/', VerifyTokenView.as_view(), name='verify_token'),
     path('api/leagues/', LeagueListCreateView.as_view(), name='league-list-create'),
-    path('leagues/<int:pk>/', LeagueDetailView.as_view(), name='league-detail'),
+    path('api/leagues/<int:pk>/', LeagueDetailView.as_view(), name='league-detail'),
     path('teams/', TeamListCreateView.as_view(), name='team-list-create'),
     path('teams/<int:pk>/', TeamDetailView.as_view(), name='team-detail'),
     path('create_league/', views.create_league, name='create_league'),
+    path('search_leagues/', views.search_league, name='search_leagues'),
+
 
 ]
 #start_scheduler()
