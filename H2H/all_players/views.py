@@ -70,6 +70,7 @@ def search_player(request):
                 "team": player.team,
                 "position": player.position,
                 "jersey": player.jersey,
+                "headshot": player.headshot,
                 "age": player.age,  # Add the age
                 "weight": player.weight,  # Add the weight
                 "height": player.displayHeight,  # Add the height

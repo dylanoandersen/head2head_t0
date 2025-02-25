@@ -6,6 +6,7 @@ class Player(models.Model):
     position = models.CharField(max_length=100, default='0')
     firstName = models.CharField(max_length=100)
     lastName = models.CharField(max_length=100)
+    headshot = models.CharField(max_length=100)
     team = models.CharField(max_length=100, default='0')
     location = models.CharField(max_length=100, default='0') 
     weight = models.FloatField(default=0)
