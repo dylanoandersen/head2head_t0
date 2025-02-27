@@ -19,23 +19,31 @@ from django.urls import path, include
 from all_players import views
 
 from all_players.scheduler import start_scheduler
-from User.views import register_user, VerifyTokenView, UserProfileView, CreateUserView, get_user_info, update_user_info
+#from User.views import register_user, VerifyTokenView, UserProfileView, CreateUserView, get_user_info, update_user_info
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from User import views as user_views
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('allPlayers/', views.allPlayer),
     path('playerInfo/<int:id>', views.player_info),
-    path('api/user/register/', register_user, name='register'),
-    path('create-user/', CreateUserView.as_view(), name='create_user'),
+    path('api/user/register/', user_views.register_user, name='register'),
+    path('create-user/', user_views.CreateUserView.as_view(), name='create_user'),
     path('user/token', TokenObtainPairView.as_view(), name='get_token'),
     path('user/token/refresh', TokenRefreshView.as_view(), name='refresh'),
     path('user-auth/', include('rest_framework.urls')),
     path('search/', views.search_player, name='search_player'),
-    path('api/verifyToken/', VerifyTokenView.as_view(), name='verify_token'),
-    path('api/user/profile', UserProfileView.as_view(), name='user-profile'),
-    path('api/user/info/', get_user_info, name='get_user_info'),
-    path('api/user/update/', update_user_info, name='update_user_info'),
+    path('api/verifyToken/', user_views.VerifyTokenView.as_view(), name='verify_token'),
+    path('api/user/profile', user_views.UserProfileView.as_view(), name='user-profile'),
+    path('api/user/info/', user_views.get_user_info, name='get_user_info'),
+    path('api/user/update/', user_views.update_user_info, name='update_user_info'),
+    path('api/leagues/', user_views.LeagueListCreateView.as_view(), name='league-list-create'),
+    path('api/leagues/<int:pk>/', user_views.LeagueDetailView.as_view(), name='league-detail'),
+    path('api/teams/', user_views.TeamListCreateView.as_view(), name='team-list-create'),
+    path('api/teams/<int:pk>/', user_views.TeamDetailView.as_view(), name='team-detail'),
+    path('api/leagues/search/', user_views.search_league, name='search_league'),
+    path('api/leagues/create/', user_views.create_league, name='create_league'),
 
 ]
 start_scheduler()

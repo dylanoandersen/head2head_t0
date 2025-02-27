@@ -1,17 +1,18 @@
 from django.contrib.auth import authenticate
 from django.shortcuts import render
 
-from .models import Profile
+from .models import Profile, League, Team
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
+from django.http import JsonResponse
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import AccessToken
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework import status, generics
+from rest_framework import status, generics, permissions
 import logging
-from .serializers import UserSerializer, ProfileSerializer
+from .serializers import UserSerializer, ProfileSerializer, LeagueSerializer, TeamSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -88,3 +89,72 @@ class VerifyTokenView(APIView):
         except (InvalidToken, TokenError) as e:
             return Response({'error': str(e)}, status=401)
 
+
+def search_league(request):
+    if request.method == "GET":
+        name_query = request.GET.get("name", "").strip()
+        print(f"Search Term: {name_query}")  # Log the search term
+
+        if not name_query:
+            return JsonResponse({"error": "No name provided"}, status=400)
+
+        # Ensure filtering works correctly
+        leagues = League.objects.filter(name__icontains=name_query)
+        print(f"Leagues Found: {list(leagues.values('id', 'name'))}")  # Log the filtered leagues
+
+        if not leagues.exists():
+            return JsonResponse({"results": []})
+
+        league_data = [
+            {
+                "id": league.id,
+                "name": league.name,
+                "owner": league.owner.username,
+                "draft_date": league.draft_date,
+            }
+            for league in leagues
+        ]
+
+        return JsonResponse({"results": league_data})
+
+    return JsonResponse({"error": "Invalid request method"}, status=405)
+
+
+@api_view(['POST'])
+def create_league(request):
+    if request.method == 'POST':
+        # Pass the request data to the serializer
+        serializer = LeagueSerializer(data=request.data, context={'request': request})
+
+        # Validate and save the league if the data is valid
+        if serializer.is_valid():
+            league = serializer.save()  # The owner is set automatically
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class LeagueListCreateView(generics.ListCreateAPIView):
+    queryset = League.objects.all()
+    serializer_class = LeagueSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+class LeagueDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = League.objects.all()
+    serializer_class = LeagueSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+class TeamListCreateView(generics.ListCreateAPIView):
+    queryset = Team.objects.all()
+    serializer_class = TeamSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def perform_create(self, serializer):
+        serializer.save(manager=self.request.user)
+
+class TeamDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Team.objects.all()
+    serializer_class = TeamSerializer
+    permission_classes = [permissions.IsAuthenticated]

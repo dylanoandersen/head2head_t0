@@ -38,3 +38,25 @@ class Profile(models.Model):
 
     def __str__(self):
         return self.user.username
+    
+
+
+class League(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="owned_leagues")
+    draft_date = models.DateTimeField()
+    time_per_pick = models.IntegerField(default=60)  # In seconds
+    positional_betting = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.name
+
+
+class Team(models.Model):
+    name = models.CharField(max_length=255)
+    manager = models.ForeignKey(User, on_delete=models.CASCADE, related_name="owned_teams")
+    league = models.ForeignKey(League, on_delete=models.CASCADE, related_name="teams")
+    football_players = models.JSONField(default=list)  # Store player IDs in a list
+
+    def __str__(self):
+        return f"{self.name} ({self.owner.display_name}'s team in {self.league.name})"
