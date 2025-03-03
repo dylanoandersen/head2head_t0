@@ -17,12 +17,9 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from all_players import views
-
 from all_players.scheduler import start_scheduler
-#from User.views import register_user, VerifyTokenView, UserProfileView, CreateUserView, get_user_info, update_user_info
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from User import views as user_views
-
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -44,6 +41,11 @@ urlpatterns = [
     path('api/teams/<int:pk>/', user_views.TeamDetailView.as_view(), name='team-detail'),
     path('api/leagues/search/', user_views.search_league, name='search_league'),
     path('api/leagues/create/', user_views.create_league, name='create_league'),
+    path('api/leagues/join/public/<int:league_id>/', user_views.join_public_league, name='join-public-league'),
+    path('api/leagues/join/private/', user_views.join_private_league, name='join-private-league'),
+    path('api/leagues/myleagues/', user_views.my_leagues, name='my-leagues'),
+    path('api/leagues/check_join_code/<str:join_code>/', user_views.check_join_code, name='check-join-code'),
 
 ]
+
 start_scheduler()

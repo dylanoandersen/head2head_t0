@@ -16,6 +16,11 @@ from .serializers import UserSerializer, ProfileSerializer, LeagueSerializer, Te
 
 logger = logging.getLogger(__name__)
 
+
+
+
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register_user(request):
@@ -90,6 +95,53 @@ class VerifyTokenView(APIView):
             return Response({'error': str(e)}, status=401)
 
 
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def my_leagues(request):
+    leagues = request.user.joined_leagues.all() | request.user.owned_leagues.all()
+    serializer = LeagueSerializer(leagues, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def join_private_league(request):
+    print("join_private_league endpoint hit")
+    join_code = request.data.get("join_code", "").strip()
+    print(f"Join code received: {join_code}")
+
+    try:
+        league = League.objects.get(join_code=join_code)
+    except League.DoesNotExist:
+        return Response({"error": "Invalid join code"}, status=status.HTTP_404_NOT_FOUND)
+
+    if league.users.count() >= league.max_capacity:
+        return Response({"error": "This league is full."}, status=status.HTTP_400_BAD_REQUEST)
+
+    league.users.add(request.user)
+    return Response({"message": "Successfully joined the league!"}, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def join_public_league(request, league_id):
+    try:
+        league = League.objects.get(id=league_id)
+    except League.DoesNotExist:
+        return Response({"error": "League not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if league.private:
+        return Response({"error": "This league is private. Use a join code."}, status=status.HTTP_403_FORBIDDEN)
+
+    if league.users.count() >= league.max_capacity:
+        return Response({"error": "This league is full."}, status=status.HTTP_400_BAD_REQUEST)
+
+    league.users.add(request.user)
+    return Response({"message": "Successfully joined the league!"}, status=status.HTTP_200_OK)
+
+
+
 def search_league(request):
     if request.method == "GET":
         name_query = request.GET.get("name", "").strip()
@@ -121,17 +173,25 @@ def search_league(request):
 
 
 @api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
 def create_league(request):
-    if request.method == 'POST':
-        # Pass the request data to the serializer
-        serializer = LeagueSerializer(data=request.data, context={'request': request})
+    join_code = request.data.get("join_code", "").strip()
+    if join_code and League.objects.filter(join_code=join_code).exists():
+        return Response({"error": "Join code already exists"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validate and save the league if the data is valid
-        if serializer.is_valid():
-            league = serializer.save()  # The owner is set automatically
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    serializer = LeagueSerializer(data=request.data, context={'request': request})
+    if serializer.is_valid():
+        league = serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def check_join_code(request, join_code):
+    exists = League.objects.filter(join_code=join_code).exists()
+    return Response({"exists": exists}, status=status.HTTP_200_OK)
+
 
 class LeagueListCreateView(generics.ListCreateAPIView):
     queryset = League.objects.all()

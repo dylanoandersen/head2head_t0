@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
+import uuid
+
 
 # Create your models here.
 
@@ -45,11 +47,20 @@ class League(models.Model):
     name = models.CharField(max_length=255, unique=True)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="owned_leagues")
     draft_date = models.DateTimeField()
-    time_per_pick = models.IntegerField(default=60)  # In seconds
+    time_per_pick = models.IntegerField(default=60)
     positional_betting = models.BooleanField(default=False)
+    max_capacity = models.IntegerField(default=10)  # Default max number of users
+    private = models.BooleanField(default=False)  # True = Private, False = Public
+    join_code = models.CharField(max_length=6, unique=True, blank=True, null=True)  # Code for private leagues
+    users = models.ManyToManyField(User, related_name="joined_leagues", blank=True)  # Users in the league
+
+    def save(self, *args, **kwargs):
+        if self.private and not self.join_code:
+            self.join_code = str(uuid.uuid4())[:10]  # Generate a random 10-character code for private leagues
+        super().save(*args, **kwargs)
 
     def __str__(self):
-        return self.name
+        return f"{self.name} - {'Private' if self.private else 'Public'}"
 
 
 class Team(models.Model):

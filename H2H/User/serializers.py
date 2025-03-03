@@ -33,21 +33,21 @@ class ProfileSerializer(serializers.ModelSerializer):
 
 
 class LeagueSerializer(serializers.ModelSerializer):
-    owner = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), required=False)
+    owner = UserSerializer(read_only=True)  # Nested owner info
     teams = serializers.PrimaryKeyRelatedField(queryset=Team.objects.all(), many=True, required=False)
+    users = UserSerializer(many=True, read_only=True)  # Nested users info
 
     class Meta:
         model = League
-        fields = ['id', 'name', 'owner', 'draft_date', 'time_per_pick', 'positional_betting', 'teams']
+        fields = ['id', 'name', 'owner', 'draft_date', 'time_per_pick', 'positional_betting',
+                  'max_capacity', 'private', 'join_code', 'users', 'teams']
 
     def create(self, validated_data):
-        # If owner is not provided, set it to the currently logged-in user
-        if 'owner' not in validated_data:
-            validated_data['owner'] = self.context['request'].user
+        request = self.context.get('request', None)
+        if request and request.user:
+            validated_data['owner'] = request.user  # Set the owner to the logged-in user
 
-        # Create the League instance
         league = League.objects.create(**validated_data)
-
         return league
 
 class TeamSerializer(serializers.ModelSerializer):
