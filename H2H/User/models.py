@@ -67,7 +67,24 @@ class Team(models.Model):
     name = models.CharField(max_length=255)
     manager = models.ForeignKey(User, on_delete=models.CASCADE, related_name="owned_teams")
     league = models.ForeignKey(League, on_delete=models.CASCADE, related_name="teams")
-    football_players = models.JSONField(default=list)  # Store player IDs in a list
+    QB = models.CharField(max_length=20, default='N/A')
+    RB1 = models.CharField(max_length=20, default='N/A')
+    RB2 = models.CharField(max_length=20, default='N/A')
+    WR1 = models.CharField(max_length=20, default='N/A')
+    WR2 = models.CharField(max_length=20, default='N/A')
+    TE = models.CharField(max_length=20, default='N/A')
+    FLX = models.CharField(max_length=20, default='N/A')
+    K = models.CharField(max_length=20, default='N/A')
+    DEF = models.CharField(max_length=20, default='N/A')
+    BN1 = models.CharField(max_length=20, default='N/A')
+    BN2 = models.CharField(max_length=20, default='N/A')
+    BN3 = models.CharField(max_length=20, default='N/A')
+    BN4 = models.CharField(max_length=20, default='N/A')
+    BN5 = models.CharField(max_length=20, default='N/A')
+    BN6 = models.CharField(max_length=20, default='N/A')
+    IR1 = models.CharField(max_length=20, default='N/A')
+    IR2 = models.CharField(max_length=20, default='N/A')
+
 
     def __str__(self):
         return f"{self.name} ({self.owner.display_name}'s team in {self.league.name})"
