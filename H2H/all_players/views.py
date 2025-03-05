@@ -33,7 +33,13 @@ def player_info(request,id):
         serializer = PlayerInfoSerializer(player)
         return Response({"Player": serializer.data})
 
-
+@api_view(['POST'])
+def topTenPlayers(request):
+    if request.method == 'POST':
+        players = Player.objects.all().order_by('-yearly_proj')[:10]
+        serializer = PlayerInfoSerializer(players, many=True)
+        return Response({"TopTen": serializer.data})
+    return Response(status=status.HTTP_400_BAD_REQUEST)
 @csrf_exempt
 def search_player(request):
     if request.method == "GET":

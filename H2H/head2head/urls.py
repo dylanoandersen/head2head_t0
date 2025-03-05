@@ -36,6 +36,6 @@ urlpatterns = [
     path('api/user/profile', UserProfileView.as_view(), name='user-profile'),
     path('api/user/info/', get_user_info, name='get_user_info'),
     path('api/user/update/', update_user_info, name='update_user_info'),
-
+    path('api/topTenPlayers/', views.topTenPlayers, name='top_ten_players'),
 ]
 start_scheduler()
