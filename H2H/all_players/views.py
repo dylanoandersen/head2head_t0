@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import JsonResponse
-from .models import Player
-from .serializers import PlayerInfoSerializer
+from .models import Player, Player_News, Player_Stats
+from .serializers import PlayerInfoSerializer, PlayerStatSerializer, PlayerNewsSerializer
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status, generics
@@ -32,6 +32,28 @@ def player_info(request,id):
     if request.method == 'GET':
         serializer = PlayerInfoSerializer(player)
         return Response({"Player": serializer.data})
+
+@api_view(['GET'])
+def player_stats(request,id):
+    try:
+        player_stats = Player_Stats.objects.filter(player=id)
+    except Player.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = PlayerStatSerializer(player_stats, many=True)
+        return Response({"Player_stats": serializer.data})
+
+@api_view(['GET'])
+def player_news(request,id):
+    try:
+        player_news = Player_News.objects.filter(player=id)
+    except Player.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = PlayerNewsSerializer(player_news, many=True)
+        return Response({"Player_news": serializer.data})
 
 
 @csrf_exempt
