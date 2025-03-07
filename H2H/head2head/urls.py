@@ -34,12 +34,15 @@ urlpatterns = [
     path('user-auth/', include('rest_framework.urls')),
     path('search/', views.search_player, name='search_player'),
     path('api/verifyToken/', VerifyTokenView.as_view(), name='verify_token'),
+    path('api/user/profile', UserProfileView.as_view(), name='user-profile'),
+    path('api/user/info/', get_user_info, name='get_user_info'),
+    path('api/user/update/', update_user_info, name='update_user_info'),
+    path('api/topTenPlayers/', views.topTenPlayers, name='top_ten_players'),
     path('api/leagues/', LeagueListCreateView.as_view(), name='league-list-create'),
     path('api/leagues/<int:pk>/', LeagueDetailView.as_view(), name='league-detail'),
     path('teams/', TeamListCreateView.as_view(), name='team-list-create'),
     path('teams/<int:pk>/', TeamDetailView.as_view(), name='team-detail'),
     path('create_league/', views.create_league, name='create_league'),
     path('search_leagues/', views.search_league, name='search_leagues'),
-
 ]
 #start_scheduler()

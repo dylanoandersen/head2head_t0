@@ -57,53 +57,14 @@ def player_info(request, id):
         "player_stats": [],
     }
 
-    # Loop through player stats
-    for stat in player.player_stats_set.all():
-        # Initialize a dictionary for stats based on position
-        stats = {}
 
-        if player.position in ['Running Back', 'Wide Receiver', 'Tight End']:  # Running Backs, Wide Receivers, Tight Ends
-            stats = {
-                'carries': stat.carrys,
-                'rushing_yards': stat.rush_yards,
-                'rushing_tds': stat.rush_tds,
-                'receptions': stat.catches,
-                'receiving_yards': stat.receiving_yards,
-                'receiving_tds': stat.receiving_tds,
-                'targets': stat.targets,
-                'fantasy_points': stat.total_fantasy_points,
-                'projected_fantasy_points':  stat.proj_fantasy,
-                'avg_yards_per_carry': stat.avg_rush_yards_perCarry,
-                'avg_yards_per_reception': stat.avg_recieving_yards_perCatch
-            }
-
-        elif player.position == 'Place kicker':  # Kicker
-            stats = {
-                'field_goals_made': stat.fg_made,
-                'field_goals_attempted': stat.fg_attempts,
-                'field_goal_percentage': stat.fg_perc,
-                'extra_points': stat.extra_points_made,
-                'fantasy_points': stat.total_fantasy_points,
-                'projected_fantasy_points': stat.proj_fantasy
-            }
-
-        elif player.position == 'Quarterback':  # Quarterback
-            stats = {
-                'completions': stat.completions,
-                'passing_yards': stat.pass_yards,
-                'passing_tds': stat.pass_tds,
-                'interceptions': stat.ints,
-                'fumbles': stat.fumbles,
-                'fantasy_points': stat.total_fantasy_points,
-                'projected_fantasy_points':  stat.proj_fantasy,
-                'completion_percentage': stat.completions_perc
-            }
-
-        # Add the stats for this week to the player_data
-        stats['week'] = stat.week
-        player_data["player_stats"].append(stats)
-
-    return Response({"Player": player_data})
+@api_view(['POST'])
+def topTenPlayers(request):
+    if request.method == 'POST':
+        players = Player.objects.all().order_by('-yearly_proj')[:10]
+        serializer = PlayerInfoSerializer(players, many=True)
+        return Response({"TopTen": serializer.data})
+    return Response(status=status.HTTP_400_BAD_REQUEST)
 
 @csrf_exempt
 def search_player(request):
@@ -141,6 +102,7 @@ def search_player(request):
                 "team": player.team,
                 "position": player.position,
                 "jersey": player.jersey,
+                "headshot": player.headshot,
                 "age": player.age,  # Add the age
                 "weight": player.weight,  # Add the weight
                 "height": player.displayHeight,  # Add the height
