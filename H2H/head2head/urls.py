@@ -29,9 +29,7 @@ urlpatterns = [
     path('playerInfo/<int:id>', views.player_info),
     path('playerStats/<int:id>', views.player_stats),
     path('playerNews/<int:id>', views.player_news),
-    
     path('api/user/register/', user_views.register_user, name='register'),
-    
     path('user/token', TokenObtainPairView.as_view(), name='get_token'),
     path('user/token/refresh', TokenRefreshView.as_view(), name='refresh'),
     path('user-auth/', include('rest_framework.urls')),

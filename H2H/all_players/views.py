@@ -9,13 +9,6 @@ from rest_framework.viewsets import ModelViewSet
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
 
-
-
-
-import json
-
-# Create your views here.
-
 @api_view(['GET'])
 def allPlayer(request):
     player = Player.objects.all()
@@ -25,38 +18,38 @@ def allPlayer(request):
     else:
         print('Could not grab all players')
 
-# @api_view(['GET'])
-# def player_info(request,id):
-#     try:
-#         player = Player.objects.get(pk=id)
-#     except Player.DoesNotExist:
-#         return Response(status=status.HTTP_404_NOT_FOUND)
-
-#     if request.method == 'GET':
-#         serializer = PlayerInfoSerializer(player)
-#         return Response({"Player": serializer.data})
-
 @api_view(['GET'])
-def player_info(request, id):
+def player_info(request,id):
     try:
-        # Prefetch related player stats for this player
-        player = Player.objects.prefetch_related('player_stats_set').get(pk=id)
+        player = Player.objects.get(pk=id)
     except Player.DoesNotExist:
-        return Response({"error": "Player not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_404_NOT_FOUND)
 
-    # Prepare the player data to be returned
-    player_data = {
-        "id": player.id,
-        "firstName": player.firstName,
-        "lastName": player.lastName,
-        "team": player.team,  # Assuming team has a name field
-        "position": player.position,
-        "jersey": player.jersey,
-        "age": player.age,
-        "weight": player.weight,
-        "displayHeight": player.displayHeight,
-        "player_stats": [],
-    }
+    if request.method == 'GET':
+        serializer = PlayerInfoSerializer(player)
+        return Response({"Player": serializer.data})
+
+# @api_view(['GET'])
+# def player_info(request, id):
+#     try:
+#         # Prefetch related player stats for this player
+#         player = Player.objects.prefetch_related('player_stats_set').get(pk=id)
+#     except Player.DoesNotExist:
+#         return Response({"error": "Player not found"}, status=status.HTTP_404_NOT_FOUND)
+
+#     # Prepare the player data to be returned
+#     player_data = {
+#         "id": player.id,
+#         "firstName": player.firstName,
+#         "lastName": player.lastName,
+#         "team": player.team,  # Assuming team has a name field
+#         "position": player.position,
+#         "jersey": player.jersey,
+#         "age": player.age,
+#         "weight": player.weight,
+#         "displayHeight": player.displayHeight,
+#         "player_stats": [],
+#     }
 
 @api_view(['GET'])
 def player_stats(request,id):
