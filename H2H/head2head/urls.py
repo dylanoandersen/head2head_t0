@@ -17,7 +17,6 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from all_players import views
-
 from all_players.scheduler import start_scheduler
 from User.views import register_user, VerifyTokenView, UserProfileView, CreateUserView, get_user_info, update_user_info
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
