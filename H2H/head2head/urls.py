@@ -41,11 +41,15 @@ urlpatterns = [
     path('api/topTenPlayers/', views.topTenPlayers, name='top_ten_players'),
     path('api/leagues/', user_views.LeagueListCreateView.as_view(), name='league-list-create'),
     path('api/leagues/<int:pk>/', user_views.LeagueDetailView.as_view(), name='league-detail'),
-    path('teams/', user_views.TeamListCreateView.as_view(), name='team-list-create'),
-    path('teams/<int:pk>/', user_views.TeamDetailView.as_view(), name='team-detail'),
-    path('create_league/', user_views.create_league, name='create_league'),
-    path('search_leagues/', user_views.search_league, name='search_leagues'),
-    path('api/user/register', user_views.CreateUserView.as_view(), name='register'),
+    path('api/teams/', user_views.TeamListCreateView.as_view(), name='team-list-create'),
+    path('api/teams/<int:pk>/', user_views.TeamDetailView.as_view(), name='team-detail'),
+    path('api/leagues/search/', user_views.search_league, name='search_league'),
+    path('api/leagues/create/', user_views.create_league, name='create_league'),
+    path('api/leagues/join/public/<int:league_id>/', user_views.join_public_league, name='join-public-league'),
+    path('api/leagues/join/private/', user_views.join_private_league, name='join-private-league'),
+    path('api/leagues/myleagues/', user_views.my_leagues, name='my-leagues'),
+    path('api/leagues/check_join_code/<str:join_code>/', user_views.check_join_code, name='check-join-code'),
+
 ]
 
 start_scheduler()
