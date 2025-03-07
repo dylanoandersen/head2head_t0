@@ -16,6 +16,7 @@ class Player(models.Model):
     age = models.IntegerField(default=0)
     experience = models.CharField(max_length=100, default='0')
     jersey = models.IntegerField(default=-1)
+    headshot = models.ImageField(upload_to='images/headShots/', blank=True, null=True)
     yearly_proj = models.DecimalField(default=0, max_digits=5, decimal_places=2)
 
     def __str__(self):
@@ -51,7 +52,7 @@ class Player_Stats(models.Model):
     sacks = models.IntegerField(default=0)
     catches = models.IntegerField(default=0)
     targets = models.IntegerField(default=0)
-    avg_recieving_yards_perCatch = models.FloatField(default=0)
+    avg_receiving_yards_perCatch = models.FloatField(default=0)
     receiving_yards = models.FloatField(default=0)
     receiving_tds = models.IntegerField(default=0)
     carrys = models.IntegerField(default=0)
@@ -76,6 +77,16 @@ class Player_Stats(models.Model):
 
     def __str__(self):
         return f"{self.firstName} {self.lastName} game stats"
+
+class Player_News(models.Model):
+    id = models.AutoField(primary_key=True)
+    player = models.ForeignKey(Player, on_delete=models.CASCADE, db_column='player_id')
+    headline = models.CharField(max_length=200, default='0')
+    text = models.TextField(default='0')
+    date = models.CharField(max_length=100, default='0')
+
+    def __str__(self):
+        return f"{self.player} news"
 
 class Def_Stats(models.Model):
     id = models.AutoField(primary_key=True)

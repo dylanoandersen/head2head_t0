@@ -82,8 +82,6 @@ def fetch_player_positions(player_id):
         pp=1
         return pp
 
-
-
 # _____________________________________________________________________________________________________
 # all games
 def get_game_stats(year):
@@ -115,6 +113,7 @@ def game_details(game_id):
         else:
             print(f"❌ Error {response.status_code}: {response.text}")
             return
+# _____________________________________________________________________________________________________
 
 def get_stats(game_id, team_id, player_id):
 
@@ -124,6 +123,34 @@ def get_stats(game_id, team_id, player_id):
 
     if response.status_code == 200:
         print("✅ Successfully fetched data! Parsing response... of STATZZZZZZZ")
+        stats = response.json()
+        return stats
+    else:
+        pp = 1
+        print(f"❌ Error {response.status_code}: {response.text}")
+        return pp
+
+def player_news(player_id):
+    url1 = f"https://site.api.espn.com/apis/fantasy/v2/games/ffl/news/players?limit=100&playerId={player_id}"
+
+    response = requests.get(url1)
+
+    if response.status_code == 200:
+        print("✅ Successfully fetched data! Parsing response... of NEWS")
+        stats = response.json()
+        return stats
+    else:
+        pp = 1
+        print(f"❌ Error {response.status_code}: {response.text}")
+        return pp
+    
+def player_headshots(player_id):
+    url1 = f"https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/athletes/{player_id}"
+
+    response = requests.get(url1)
+
+    if response.status_code == 200:
+        print("✅ Successfully fetched data! Parsing response... of HEADSHOT")
         stats = response.json()
         return stats
     else:
@@ -144,12 +171,40 @@ def get_def_stats(game_id, team_id):
         print(f"❌ Error {response.status_code}: {response.text}")
         return pp
 
+# _____________________________________________________________________________________________________
+
 def get_pts_proj(week):
     url = f'https://api.sportsdata.io/v3/nfl/projections/json/PlayerGameProjectionStatsByWeek/2024REG/{week}?key=85266f5b9d954fbebb82673d6d417982'
     response = requests.get(url)
 
     if response.status_code == 200:
-        print("✅ Successfully fetched data! Parsing response... of STATZZZZZZZ of")
+        print("✅ Successfully fetched data! Parsing response... of STATZZZZZZZ of player proj")
+        stats = response.json()
+        return stats
+    else:
+        pp = 1
+        print(f"❌ Error {response.status_code}: {response.text}")
+        return pp
+    
+def get_totalYearly_proj():
+    url = 'https://api.sportsdata.io/v3/nfl/projections/json/PlayerSeasonProjectionStats/2024?key=85266f5b9d954fbebb82673d6d417982'
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        print("✅ Successfully fetched data! Parsing response... of STATZZZZZZZ of player yearly proj")
+        stats = response.json()
+        return stats
+    else:
+        pp = 1
+        print(f"❌ Error {response.status_code}: {response.text}")
+        return pp
+
+def get_bye_teams(i):
+    url = f'https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/2024/types/2/weeks/{i}'
+    response = requests.get(url)
+
+    if response.status_code == 200:
+        print("✅ Successfully fetched data! Parsing response... of STATZZZZZZZ of team bye")
         stats = response.json()
         return stats
     else:

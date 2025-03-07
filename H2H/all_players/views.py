@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import JsonResponse
-from .models import Player, League, Team
-from .serializers import PlayerInfoSerializer, LeagueSerializer, TeamSerializer
+from .models import Player, Player_News, Player_Stats, League, Team
+from .serializers import PlayerInfoSerializer, PlayerStatSerializer, PlayerNewsSerializer, LeagueSerializer, TeamSerializer
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status, generics, permissions
@@ -57,6 +57,28 @@ def player_info(request, id):
         "displayHeight": player.displayHeight,
         "player_stats": [],
     }
+
+@api_view(['GET'])
+def player_stats(request,id):
+    try:
+        player_stats = Player_Stats.objects.filter(player=id)
+    except Player.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = PlayerStatSerializer(player_stats, many=True)
+        return Response({"Player_stats": serializer.data})
+
+@api_view(['GET'])
+def player_news(request,id):
+    try:
+        player_news = Player_News.objects.filter(player=id)
+    except Player.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        serializer = PlayerNewsSerializer(player_news, many=True)
+        return Response({"Player_news": serializer.data})
 
 
 @api_view(['POST'])
@@ -115,71 +137,4 @@ def search_player(request):
     
     return JsonResponse({"error": "Invalid request method"}, status=405)
 
-def search_league(request):
-    if request.method == "GET":
-        name_query = request.GET.get("name", "").strip()
-        print(f"Search Term: {name_query}")  # Log the search term
 
-        if not name_query:
-            return JsonResponse({"error": "No name provided"}, status=400)
-
-        # Ensure filtering works correctly
-        leagues = League.objects.filter(name__icontains=name_query)
-        print(f"Leagues Found: {list(leagues.values('id', 'name'))}")  # Log the filtered leagues
-
-        if not leagues.exists():
-            return JsonResponse({"results": []})
-
-        league_data = [
-            {
-                "id": league.id,
-                "name": league.name,
-                "owner": league.owner.username,
-                "draft_date": league.draft_date,
-            }
-            for league in leagues
-        ]
-
-        return JsonResponse({"results": league_data})
-
-    return JsonResponse({"error": "Invalid request method"}, status=405)
-
-
-@api_view(['POST'])
-def create_league(request):
-    if request.method == 'POST':
-        # Pass the request data to the serializer
-        serializer = LeagueSerializer(data=request.data, context={'request': request})
-
-        # Validate and save the league if the data is valid
-        if serializer.is_valid():
-            league = serializer.save()  # The owner is set automatically
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-class LeagueListCreateView(generics.ListCreateAPIView):
-    queryset = League.objects.all()
-    serializer_class = LeagueSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def perform_create(self, serializer):
-        serializer.save(owner=self.request.user)
-
-class LeagueDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = League.objects.all()
-    serializer_class = LeagueSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-class TeamListCreateView(generics.ListCreateAPIView):
-    queryset = Team.objects.all()
-    serializer_class = TeamSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def perform_create(self, serializer):
-        serializer.save(manager=self.request.user)
-
-class TeamDetailView(generics.RetrieveUpdateDestroyAPIView):
-    queryset = Team.objects.all()
-    serializer_class = TeamSerializer
-    permission_classes = [permissions.IsAuthenticated]

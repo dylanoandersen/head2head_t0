@@ -3,13 +3,14 @@ import django
 import requests
 import pytz
 from datetime import datetime, date, timedelta
+from django.core.files.base import ContentFile
 
 # Ensure Django settings are loaded
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "head2head.settings")
 #django.setup()  # Initializes Django (uncomment if required to load Django models)
 
-from .espn_api import fetch_espn_data, get_game_stats, fetch_player_positions, get_stats, game_details, get_def_stats, get_pts_proj, fetch_def_info
-from .models import Player, Game, Player_Stats, Def_Stats
+from .espn_api import fetch_espn_data, get_game_stats, fetch_player_positions, get_stats, game_details, get_def_stats, get_pts_proj, get_totalYearly_proj, player_news, player_headshots
+from .models import Player, Game, Player_Stats, Player_News, Def_Stats
 
 team_id = [(1, 'Falcons'), (2, 'Bills'), (3, 'Bears'), (4, 'Bengals'), (5, 'Browns'), (6, 'Cowboys'), (7, 'Broncos'), (8, 'Lions'), (9, 'Packers'), (34, 'Texans'), (11, 'Colts'), (30, 'Jaguars'), (12, 'Chiefs'), (14, 'Rams'), (24, 'Chargers'), (15, 'Dolphins'), (16, 'Vikings'), (17, 'Patriots'), (18, 'Saints'), (19, 'Giants'), (20, 'Jets'), (13, 'Raiders'), (21, 'Eagles'), (23, 'Steelers'), (25, '49ers'), (26, 'Seahawks'), (27, 'Buccaneers'), (10, 'Titans'), (22, 'Cardinals'), (28, 'Commanders'), (33, 'Ravens'), (29, 'Panthers')]
 team_dict = {name: id for id, name in team_id}
@@ -48,145 +49,58 @@ nfl_teams = {
     "WAS": "Washington Commanders"
 }
 
-# Updates ESPN player data once a year, ensuring the database has the latest active players
-def update_espn_data():
-    data = fetch_espn_data()  # Fetch player data from the ESPN API
-    players = data["items"]  # Extract the list of players
-
-    # Loop through players and update or create records for active players
-    for player in players:
-        Player.objects.update_or_create(
-            id=player['id'],  # Use player ID as the primary key
-            defaults={
-                'firstName': player.get('firstName', ''),
-                'lastName': player.get('lastName', ''),
-                'weight': player.get('weight', 0),
-                'displayHeight': player.get('displayHeight', ''),
-                'age': player.get('age', 0),
-                'experience': player.get('experience', ''),
-                'jersey': player.get('jersey', 0)
-            }
-        )
-
-# Updates player positions and team data by fetching additional information
-def update_player_positions():
-    for player in Player.objects.all():  # Loop through all players in the database
-        result = fetch_player_positions(player.id)  # Fetch position and team details
-        if result == 1:
-            print(player.id, " problem !!!!!!!!!")
-            continue
-        athlete = result.get('athlete', {})  # Get athlete data
-
-        # Extract position, team, and status information
-        position = athlete.get('position', {}).get('name', '')
-        team = athlete.get('team', {}).get('name', '')
-        location = athlete.get('team', {}).get('location', '')
-
-        # Determine player status (active or not) and handle injuries if present
-        if athlete.get('active', '') == True:
-            if 'injuries' in athlete:
-                status = athlete.get('injuries', [])
-                for s in status:
-                    status = s.get('type', {}).get('name', '')
-            else:
-                status = 'Active'
-        if athlete.get('active', '') == False:  # Remove inactive players
-            Player.objects.filter(id=player.id).delete()
-            print("Player deleted")
-            continue
-
-        # Update or create player data with new details
-        Player.objects.update_or_create(
-            id=player.id,
-            defaults={
-                'status': status,
-                'team': team,
-                'location': location,
-                'position': position
-            }
-        )
-        print("Player position added")
-
-# Get all teams DEF
-# x = fetch_def_info()
-# for z,y in x.items():
-#     if y.get('position') == 'DEF':
-#         print('found DEF')
-#         Player.objects.update_or_create(
-#             id = y.get('player_id'),
-#             defaults={
-#                 'lastName': y.get('last_name'),
-#                 'firstName': y.get('first_name'),
-#                 'position': y.get('position'),
-#                 'team': y.get('last_name')
-#             }
-#         )
-
-def delete_positionsNotNeeded():
-    for players in Player.objects.all():
-        if players.position == 'Quarterback' or players.position == 'Running Back' or players.position == 'Wide Receiver' or players.position == 'Tight End' or players.position == 'Place kicker' or players.position == 'DEF':
-            continue
-        else:
-            print("player position: ", players.position)
-            players.delete()
-
-# Updates game data for the 2024 season
-def update_game_data():
-    season_2024 = [2024, 2025]
-    for year in season_2024:
-        data = get_game_stats(year)
-        events = data.get("events", [])
-        for event in events:
-            id = event.get("id", "")
-            date = event.get("date", "")
-            season_type = event.get("season", {}).get("slug", "")
-            if event.get("season", {}).get("year", 0) != 2024:
-                continue
-            for competition in event.get("competitions", []):
-                home_team, away_team, home_score, away_score = "", "", "", ""
-                for competitor in competition.get("competitors", []):
-                    if competitor.get("homeAway") == "home":
-                        home_team = competitor.get("team", {}).get("displayName", "")
-                        home_score = competitor.get("score", "")
-                    else:
-                        away_team = competitor.get("team", {}).get("displayName", "")
-                        away_score = competitor.get("score", "")
-
-                # Update or create Game data
-                Game.objects.update_or_create(
-                    id=id,
-                    defaults={
-                        'season_type': season_type,
-                        'date': date,
-                        'home_team': home_team,
-                        'away_team': away_team,
-                        'home_score': home_score,
-                        'away_score': away_score
-                    }
-                )
-                print("Game data added")
 #_________________________________________________________________________________________________________________
 
 # Runs daily to check if there are any games scheduled for today
 def live_update():
     print("Running daily task... live_update")
-    today_player_ids = []  # List to store player IDs for today's games
-    data, id, game_time = today_games()  # Get today's games and team IDs
-    if data:
-        for team in data:
-            for players in Player.objects.all():
-                if players.team in team:
-                    today_player_ids.append(players.id)
-    else:
+    #projectionz(18)
+    #get_player_news()
+
+    data, game_ids, game_time = today_games()  # Get today's games and team IDs
+
+    if not data:
         print('No games today')
-    return today_player_ids, id, game_time
+    
+    game_dict = {key: [] for key in game_ids}
+    for key in game_dict:
+        game = Game.objects.get(id=key)
+        homeTeam = game.home_team
+        awayTeam = game.away_team
+
+        homePlayerz = []
+        awayPlayerz = []
+
+        for p in Player.objects.filter(team = homeTeam):
+            if p.team in homeTeam:
+                homePlayerz.append(p.id)
+        
+        for p in Player.objects.filter(team = awayTeam):
+            if p.team in awayTeam:
+                awayPlayerz.append(p.id)
+        
+        game_dict[key] = homePlayerz + awayPlayerz
+        
+    return game_dict, game_time
+
+        # Update player statuses
+    # for id in today_player_ids:
+    #     result = fetch_player_positions(id)
+    #     athlete = result.get('athlete', {})
+    #     status = 'Active'  # Default status
+    #     if 'injuries' in athlete:
+    #         status = athlete.get('injuries', [])[0].get('type', {}).get('name', '')
+
+    #     Player.objects.update_or_create(
+    #         id=id,
+    #         defaults={'status': status}
+    #     )
 
 # Retrieves a list of teams playing today and their game IDs
 def today_games():
     teams_playing_today = []
     teams_playing_ids = []
     game_times = []
-    #projectionz(1)
     for games in Game.objects.all():
         date_string = games.date
         utc_time = datetime.strptime(date_string, "%Y-%m-%dT%H:%MZ")
@@ -196,7 +110,7 @@ def today_games():
         today = datetime.now(pytz.timezone("US/Central")).date()
 
         # comment in or out to simulate, change today to specific_date in if statement
-        #specific_date = date(2024, 9, 9)
+        #specific_date = date(2024, 11, 17)
 
         if central_time.date() == today:
             teams_playing_ids.append(games.id)
@@ -211,9 +125,37 @@ def today_games():
         earliest_time = 0
 
     # comment in or out to simululate, change in return statement, earliest time to time
-    #time = datetime.now(pytz.timezone("US/Central")) + timedelta(minutes=1)
+    #time = datetime.now(pytz.timezone("US/Central")) + timedelta(minutes=.5)
 
     return teams_playing_today, teams_playing_ids, earliest_time
+
+def get_player_news():
+    for player in Player.objects.all():
+        result = player_news(player.id)
+        if result == 1:
+            continue
+        
+        feed = result.get('feed', [])
+        if feed == []:
+            continue
+        feed = feed[0]
+
+        player_inst = Player.objects.get(id=player.id)
+        headline = feed.get('headline', '')
+        text = feed.get('story','')
+        date = feed.get('published','')
+
+        print(player.id)
+        Player_News.objects.update_or_create(
+            player=player_inst,
+            defaults={
+                'player': player_inst,
+                'headline': headline,
+                'text': text,
+                'date': date
+            }
+        )
+        print("Player news added")
 
 def projectionz(week):
     data = get_pts_proj(week)
@@ -232,12 +174,18 @@ def projectionz(week):
             homeTeam = nfl_teams.get(homeTeam,"Unknown Team")
             awayTeam = nfl_teams.get(awayTeam,"Unknown Team")
 
+        homeTeam = homeTeam.split()[-1]
+        awayTeam = awayTeam.split()[-1]
+
         playrz = Player.objects.filter(firstName = first_name)
         if playrz:
             for player in playrz:
                 if player.lastName in name:
                     player_inst = Player.objects.get(id=player.id)
+                    print(homeTeam, awayTeam)
                     game_inst = Game.objects.get(home_team = homeTeam, away_team = awayTeam)
+                    wee = game_inst.week
+
                     proj = d.get('FantasyPointsDraftKings','')
                     Player_Stats.objects.update_or_create(
                         player=player_inst,
@@ -245,6 +193,7 @@ def projectionz(week):
                         defaults={
                             'firstName': player_inst.firstName,
                             'lastName': player_inst.lastName,
+                            'week': wee,
                             'proj_fantasy': proj
                         }
                     )
@@ -253,16 +202,16 @@ def projectionz(week):
 
 
 # Updates player status and game data once a minute if there are games today
-def update_player_status1(today_player_ids, game_id):
+def update_player_status1(game_dict):
 
 #___________Game Live Update____________
 
     print('its doing something')
-    print(game_id)
 
-    for ids in game_id:
+    for ids in game_dict:
         # Parse game data from the API
         response_data = game_details(ids)
+
         drives = response_data.get('drives', {})
         plays_list = drives.get('current', []) if 'current' in drives else drives.get('previous', [])
 
@@ -291,6 +240,7 @@ def update_player_status1(today_player_ids, game_id):
         
         week = response_data.get('header', {}).get('week', 0)
         # Update or create Game object with live data
+        print('updating game')
         Game.objects.update_or_create(
             id=ids,
             defaults={
@@ -304,26 +254,16 @@ def update_player_status1(today_player_ids, game_id):
         obj = Game.objects.get(id = ids)
         print(vars(obj))
 
-        teamz = []
-        box = response_data.get('boxscore',{}).get('teams', [])
-        for x in box:
-            if 'team' in x:
-                y = x.get('team', {})
-                z = y.get('name', 0)
-                teamz.append(z)
-
 #___________Player Live Update____________
 
         
-        for id in today_player_ids:
+        for id in game_dict[ids]:
+
             players_team = Player.objects.get(id=id).team
             team_number = team_dict.get(players_team)
 
             first = Player.objects.get(id=id).firstName
             last = Player.objects.get(id=id).lastName
-
-            if players_team not in teamz:
-                continue
             
             # Call 2 different functions to get 1. player stats for game 2. team defensive stats for game
 
@@ -387,6 +327,8 @@ def update_player_status1(today_player_ids, game_id):
                         'total_fantasy_points': fantasy_pts
                     }
                 )
+                print("DEF stats for a game added")
+
             else:
                 stats = get_stats(ids, team_number, id)
                 if stats == 1:
@@ -572,22 +514,9 @@ def update_player_status1(today_player_ids, game_id):
                 )
                 print("Player stats for a game added")
 
+        print('done with game')
+
     print('round done')
-    print(obj.home_score, ' ', obj.away_score, ' ', obj.current_play)
-
-    # Update player statuses
-    # for id in today_player_ids:
-    #     result = fetch_player_positions(id)
-    #     athlete = result.get('athlete', {})
-    #     status = 'Active'  # Default status
-    #     if 'injuries' in athlete:
-    #         status = athlete.get('injuries', [])[0].get('type', {}).get('name', '')
-
-    #     Player.objects.update_or_create(
-    #         id=id,
-    #         defaults={'status': status}
-    #     )
-
 
 def fantasy_point_calculator_offense(pass_y, pass_td, pass_i, rush_y ,rush_td, rec, rec_y, rec_td, ret_td, fums):
     pass_y_pt = pass_y * .04

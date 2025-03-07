@@ -38,20 +38,20 @@ def daily_task_wrapper():
     print("🔄 Running daily task...")
 
     # Run live update task and schedule minute tasks if needed
-    player_id, game_id, game_time = live_update()
-    print(player_id, game_time, " jj")
-    if player_id and game_time:
+    game_dict, game_time = live_update()
+    print(game_dict, game_time, " jj")
+    if game_dict and game_time:
         print(f"📢 Game scheduled today at {game_time}")
-        schedule_minute_task(player_id, game_id, game_time)
+        schedule_minute_task(game_dict, game_time)
 
 def live_update_wrapper():
     """Wrapper function for scheduled live updates."""
     print("🔄 Running scheduled live update...")
-    player_id, game_id, game_time = live_update()
-    if player_id and game_time:
-        schedule_minute_task(player_id, game_id, game_time)
+    game_dict, game_time = live_update()
+    if game_dict and game_time:
+        schedule_minute_task(game_dict, game_time)
 
-def schedule_minute_task(player_id, game_id, game_time):
+def schedule_minute_task(game_dict, game_time):
     """Schedules a task that updates player status every 3 minutes for 8 hours."""
     print(f"⏳ Scheduling minute-based updates starting at {game_time}...")
 
@@ -60,9 +60,9 @@ def schedule_minute_task(player_id, game_id, game_time):
     if not scheduler.get_job("minute_task"):
         scheduler.add_job(
             update_player_status1,
-            trigger=IntervalTrigger(minutes=3, start_date=game_time, end_date=end_time),
+            trigger=IntervalTrigger(minutes=60, start_date=game_time, end_date=end_time),
             id="minute_task",
-            args=[player_id, game_id],  # Pass necessary arguments
+            args=[game_dict],  # Pass necessary arguments
             replace_existing=True,
             max_instances=1,  # Prevent overlapping jobs
         )
