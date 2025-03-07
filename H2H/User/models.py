@@ -1,5 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
+import uuid
+
 
 # Create your models here.
 
@@ -30,3 +32,59 @@ class traditional_redraft(models.Model):  # Class names should be in PascalCase
 
     def __str__(self):
         return f"{self.title} {self.author}"
+
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    date_of_birth = models.DateField(null=True, blank=True)
+    profile_picture = models.ImageField(upload_to='profile_pictures/', null=True, blank=True)
+
+    def __str__(self):
+        return self.user.username
+    
+
+
+class League(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="owned_leagues")
+    draft_date = models.DateTimeField()
+    time_per_pick = models.IntegerField(default=60)
+    positional_betting = models.BooleanField(default=False)
+    max_capacity = models.IntegerField(default=10)  # Default max number of users
+    private = models.BooleanField(default=False)  # True = Private, False = Public
+    join_code = models.CharField(max_length=6, unique=True, blank=True, null=True)  # Code for private leagues
+    users = models.ManyToManyField(User, related_name="joined_leagues", blank=True)  # Users in the league
+
+    def save(self, *args, **kwargs):
+        if self.private and not self.join_code:
+            self.join_code = str(uuid.uuid4())[:10]  # Generate a random 10-character code for private leagues
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.name} - {'Private' if self.private else 'Public'}"
+
+
+class Team(models.Model):
+    name = models.CharField(max_length=255)
+    manager = models.ForeignKey(User, on_delete=models.CASCADE, related_name="owned_teams")
+    league = models.ForeignKey(League, on_delete=models.CASCADE, related_name="teams")
+    QB = models.CharField(max_length=20, default='N/A')
+    RB1 = models.CharField(max_length=20, default='N/A')
+    RB2 = models.CharField(max_length=20, default='N/A')
+    WR1 = models.CharField(max_length=20, default='N/A')
+    WR2 = models.CharField(max_length=20, default='N/A')
+    TE = models.CharField(max_length=20, default='N/A')
+    FLX = models.CharField(max_length=20, default='N/A')
+    K = models.CharField(max_length=20, default='N/A')
+    DEF = models.CharField(max_length=20, default='N/A')
+    BN1 = models.CharField(max_length=20, default='N/A')
+    BN2 = models.CharField(max_length=20, default='N/A')
+    BN3 = models.CharField(max_length=20, default='N/A')
+    BN4 = models.CharField(max_length=20, default='N/A')
+    BN5 = models.CharField(max_length=20, default='N/A')
+    BN6 = models.CharField(max_length=20, default='N/A')
+    IR1 = models.CharField(max_length=20, default='N/A')
+    IR2 = models.CharField(max_length=20, default='N/A')
+
+
+    def __str__(self):
+        return f"{self.name} ({self.owner.display_name}'s team in {self.league.name})"

@@ -1,13 +1,16 @@
 from django.shortcuts import render
 from django.http import JsonResponse
-from .models import Player, Player_News, Player_Stats
-from .serializers import PlayerInfoSerializer, PlayerStatSerializer, PlayerNewsSerializer
+from .models import Player, Player_News, Player_Stats, League, Team
+from .serializers import PlayerInfoSerializer, PlayerStatSerializer, PlayerNewsSerializer, LeagueSerializer, TeamSerializer
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework import status, generics
+from rest_framework import status, generics, permissions
 from rest_framework.viewsets import ModelViewSet
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
+
+
+
 
 import json
 
@@ -22,16 +25,38 @@ def allPlayer(request):
     else:
         print('Could not grab all players')
 
-@api_view(['GET'])
-def player_info(request,id):
-    try:
-        player = Player.objects.get(pk=id)
-    except Player.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+# @api_view(['GET'])
+# def player_info(request,id):
+#     try:
+#         player = Player.objects.get(pk=id)
+#     except Player.DoesNotExist:
+#         return Response(status=status.HTTP_404_NOT_FOUND)
 
-    if request.method == 'GET':
-        serializer = PlayerInfoSerializer(player)
-        return Response({"Player": serializer.data})
+#     if request.method == 'GET':
+#         serializer = PlayerInfoSerializer(player)
+#         return Response({"Player": serializer.data})
+
+@api_view(['GET'])
+def player_info(request, id):
+    try:
+        # Prefetch related player stats for this player
+        player = Player.objects.prefetch_related('player_stats_set').get(pk=id)
+    except Player.DoesNotExist:
+        return Response({"error": "Player not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    # Prepare the player data to be returned
+    player_data = {
+        "id": player.id,
+        "firstName": player.firstName,
+        "lastName": player.lastName,
+        "team": player.team,  # Assuming team has a name field
+        "position": player.position,
+        "jersey": player.jersey,
+        "age": player.age,
+        "weight": player.weight,
+        "displayHeight": player.displayHeight,
+        "player_stats": [],
+    }
 
 @api_view(['GET'])
 def player_stats(request,id):
@@ -55,6 +80,14 @@ def player_news(request,id):
         serializer = PlayerNewsSerializer(player_news, many=True)
         return Response({"Player_news": serializer.data})
 
+
+@api_view(['POST'])
+def topTenPlayers(request):
+    if request.method == 'POST':
+        players = Player.objects.all().order_by('-yearly_proj')[:10]
+        serializer = PlayerInfoSerializer(players, many=True)
+        return Response({"TopTen": serializer.data})
+    return Response(status=status.HTTP_400_BAD_REQUEST)
 
 @csrf_exempt
 def search_player(request):
@@ -92,6 +125,7 @@ def search_player(request):
                 "team": player.team,
                 "position": player.position,
                 "jersey": player.jersey,
+                "headshot": player.headshot,
                 "age": player.age,  # Add the age
                 "weight": player.weight,  # Add the weight
                 "height": player.displayHeight,  # Add the height
@@ -102,3 +136,5 @@ def search_player(request):
         return JsonResponse({"players": player_data})
     
     return JsonResponse({"error": "Invalid request method"}, status=405)
+
+
