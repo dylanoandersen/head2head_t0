@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import JsonResponse
-from .models import Player, Player_News, Player_Stats, League, Team
-from .serializers import PlayerInfoSerializer, PlayerStatSerializer, PlayerNewsSerializer, LeagueSerializer, TeamSerializer
+from .models import Player, Player_News, Player_Stats
+from .serializers import PlayerInfoSerializer, PlayerStatSerializer, PlayerNewsSerializer
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status, generics, permissions

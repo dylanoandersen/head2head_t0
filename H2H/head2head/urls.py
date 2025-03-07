@@ -19,9 +19,8 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path, include
 from all_players.scheduler import start_scheduler
-from User import views as user_views
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from all_players.views import LeagueListCreateView, LeagueDetailView, TeamListCreateView, TeamDetailView
+from User import views as user_views
 from all_players import views
 
 urlpatterns = [
