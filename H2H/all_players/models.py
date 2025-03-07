@@ -1,4 +1,6 @@
 from django.db import models
+from django.contrib.auth.models import User
+
 
 class Player(models.Model):
     id = models.CharField(max_length=50, primary_key=True) 
@@ -18,6 +20,7 @@ class Player(models.Model):
 
     def __str__(self):
         return f"{self.id} {self.firstName} {self.lastName}"
+    
 class Game(models.Model):
     id = models.CharField(max_length=20, primary_key=True)
     season_type = models.CharField(max_length=100, default='0')
@@ -93,3 +96,24 @@ class Def_Stats(models.Model):
 
     def __str__(self):
         return f"{self.team} game stats"
+    
+
+class League(models.Model):
+    name = models.CharField(max_length=255, unique=True)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name="owned_leagues")
+    draft_date = models.DateTimeField()
+    time_per_pick = models.IntegerField(default=60)  # In seconds
+    positional_betting = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.name
+
+
+class Team(models.Model):
+    name = models.CharField(max_length=255)
+    manager = models.ForeignKey(User, on_delete=models.CASCADE, related_name="owned_teams")
+    league = models.ForeignKey(League, on_delete=models.CASCADE, related_name="teams")
+    football_players = models.JSONField(default=list)  # Store player IDs in a list
+
+    def __str__(self):
+        return f"{self.name} ({self.owner.display_name}'s team in {self.league.name})"
