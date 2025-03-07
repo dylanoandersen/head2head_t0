@@ -20,7 +20,6 @@ class PlayerStatsSerializer(serializers.ModelSerializer):
         ]
 
 class PlayerInfoSerializer(serializers.ModelSerializer):
-    player_stats = PlayerStatsSerializer(many=True, read_only=True, source='player_stats_set')
     class Meta:
         model = Player
         fields = ['id', 'firstName', 'headshot', 'lastName', 'team', 'position', 'jersey', 'age', 'weight', 'displayHeight']

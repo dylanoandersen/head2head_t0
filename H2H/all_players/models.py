@@ -16,7 +16,7 @@ class Player(models.Model):
     age = models.IntegerField(default=0)
     experience = models.CharField(max_length=100, default='0')
     jersey = models.IntegerField(default=-1)
-    headshot = models.ImageField(upload_to='images/headShots/', blank=True, null=True)
+    headshot = models.CharField(max_length=100, default='0')
     yearly_proj = models.DecimalField(default=0, max_digits=5, decimal_places=2)
 
     def __str__(self):
