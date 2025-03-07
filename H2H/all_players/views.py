@@ -11,6 +11,7 @@ from django.db.models import Q
 
 
 
+
 import json
 
 # Create your views here.
@@ -113,11 +114,6 @@ def search_player(request):
         return JsonResponse({"players": player_data})
     
     return JsonResponse({"error": "Invalid request method"}, status=405)
-
-
-from django.http import JsonResponse
-
-from django.http import JsonResponse
 
 def search_league(request):
     if request.method == "GET":
