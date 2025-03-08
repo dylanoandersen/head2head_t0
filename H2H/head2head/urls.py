@@ -30,6 +30,7 @@ urlpatterns = [
     path('playerStats/<int:id>', views.player_stats),
     path('playerNews/<int:id>', views.player_news),
     path('api/user/register/', user_views.register_user, name='register'),
+    path('api/search_player/', views.search_player, name='search_player'),
     path('user/token', TokenObtainPairView.as_view(), name='get_token'),
     path('user/token/refresh', TokenRefreshView.as_view(), name='refresh'),
     path('user-auth/', include('rest_framework.urls')),
