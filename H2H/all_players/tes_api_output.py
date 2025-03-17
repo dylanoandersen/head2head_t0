@@ -14,10 +14,14 @@ teamsOnBye = 'https://sports.core.api.espn.com/v2/sports/football/leagues/nfl/se
 liveBox = 'https://cdn.espn.com/core/nfl/boxscore?xhr=1&gameId=401671489'
 
 test = 'http://sports.core.api.espn.com/v2/sports/football/leagues/nfl/seasons/2024/teams/12?lang=en&region=us'
+own = "https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/2024/players?view=kona_player_info"
+headers = {
+    "X-Fantasy-Filter": '{"players":{"limit":3000}}'
+}
 
-response = requests.get(test)
+response = requests.get(own, headers=headers)
 response1 = response.json()
 
 if response1:
-     with open("test.txt", "w") as file:
+     with open("testzzzz.txt", "w") as file:
         json.dump(response1, file, indent=4)  # Saves JSON data to file with indentation
