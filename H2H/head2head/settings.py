@@ -62,7 +62,11 @@ INSTALLED_APPS = [
     'rest_framework',
     'all_players',
     'User',
+    'channels',
 ]
+
+ASGI_APPLICATION = 'H2H.asgi.application'
+
 
 # allows django to talk to this address. Local for now.
 CORS_ALLOWED_ORIGINS = ['http://localhost:5173']

@@ -53,6 +53,8 @@ class League(models.Model):
     private = models.BooleanField(default=False)  # True = Private, False = Public
     join_code = models.CharField(max_length=6, unique=True, blank=True, null=True)  # Code for private leagues
     users = models.ManyToManyField(User, related_name="joined_leagues", blank=True)  # Users in the league
+    draftStarted = models.BooleanField(default=False)  # Add this line
+
 
     def save(self, *args, **kwargs):
         if self.private and not self.join_code:
@@ -88,3 +90,14 @@ class Team(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.owner.display_name}'s team in {self.league.name})"
+
+
+class Draft(models.Model):
+    league = models.OneToOneField(League, on_delete=models.CASCADE)
+    current_pick = models.IntegerField(default=1)
+    draft_order = models.JSONField()  # List of user IDs in draft order
+    picks = models.JSONField(default=list)  # List of picks made
+
+    def get_next_pick(self):
+        # Implement snake draft logic to get the next pick
+        pass
