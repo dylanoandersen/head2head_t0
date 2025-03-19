@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import traditional_redraft, Profile, League, Team
+from .models import Profile, League, Team
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -22,7 +22,7 @@ class UserSerializer(serializers.ModelSerializer):
 # add more later
 class ReDraftSerializer(serializers.ModelSerializer):
     class Meta:
-        model = traditional_redraft
+        model = Team
         fields = ['id', 'title', 'author', 'QB', 'RB1', 'RB2', 'WR1', ]
 
 class ProfileSerializer(serializers.ModelSerializer):

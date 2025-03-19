@@ -43,6 +43,7 @@ urlpatterns = [
     path('api/leagues/league/<int:league_id>/start_draft/', user_views.start_draft, name='start_draft'),
     path('api/league/<int:league_id>/check_membership/', user_views.check_league_membership, name='check_membership'),
     path('api/league/<int:league_id>/check_draft_status/', user_views.check_draft_status, name='check_draft_status'),
+    path('api/leagues/<int:league_id>/update_settings/', user_views.update_league_settings, name='update-settings'),
     path('api/leagues/', user_views.LeagueListCreateView.as_view(), name='league-list-create'),
     path('api/leagues/<int:pk>/', user_views.LeagueDetailView.as_view(), name='league-detail'),
     path('api/teams/', user_views.TeamListCreateView.as_view(), name='team-list-create'),

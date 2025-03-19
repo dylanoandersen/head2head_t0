@@ -1,6 +1,6 @@
 from django.contrib.auth import authenticate
 from django.shortcuts import render
-
+from datetime import datetime;
 from .models import Profile, League, Team, Draft
 from all_players.models import Player  # Import the Player model from the all_players app
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -16,6 +16,52 @@ import logging
 from .serializers import UserSerializer, ProfileSerializer, LeagueSerializer, TeamSerializer
 
 logger = logging.getLogger(__name__)
+
+
+@api_view(['PUT'])
+@permission_classes([IsAuthenticated])
+def update_league_settings(request, league_id):
+    logger.info("Received request to update league settings for league_id: %s", league_id)
+    logger.info("Request data: %s", request.data)
+
+    try:
+        league = League.objects.get(id=league_id, owner=request.user)
+    except League.DoesNotExist:
+        logger.error("League not found or user is not the owner.")
+        return Response({'error': 'League not found or you are not the owner.'}, status=403)
+
+    data = request.data
+
+    # Validate draft_date
+    if 'draft_date' in data:
+        draft_date = data['draft_date']
+        try:
+            parsed_date = datetime.strptime(draft_date, "%Y-%m-%dT%H:%M:%S")
+            if parsed_date < datetime.now():
+                logger.error("Draft date must be in the future. Received: %s", draft_date)
+                return Response({'error': 'Draft date must be in the future.'}, status=400)
+        except ValueError as e:
+            logger.error("Invalid draft_date format: %s", draft_date)
+            return Response({'error': 'Invalid draft date format. Use ISO 8601 format.'}, status=400)
+
+    # Validate join_code uniqueness
+    if 'join_code' in data and League.objects.filter(join_code=data['join_code']).exclude(id=league_id).exists():
+        logger.error("Join code already exists: %s", data['join_code'])
+        return Response({'error': 'Join code already exists.'}, status=400)
+
+    # Update fields
+    for field in ['draft_date', 'time_per_pick', 'positional_betting', 'max_capacity', 'private', 'join_code']:
+        if field in data:
+            logger.info("Updating field %s to %s", field, data[field])
+            setattr(league, field, data[field])
+
+    try:
+        league.save()
+        logger.info("League settings updated successfully for league_id: %s", league_id)
+        return Response({'success': 'League settings updated successfully.'})
+    except Exception as e:
+        logger.error("Error saving league settings: %s", str(e))
+        return Response({'error': 'Failed to update league settings.'}, status=500)
 
 
 @api_view(['POST'])

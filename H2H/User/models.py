@@ -4,35 +4,6 @@ import uuid
 
 
 # Create your models here.
-
-
-class traditional_redraft(models.Model):  # Class names should be in PascalCase
-
-    title = models.CharField(max_length=100)
-    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="ReDraft")
-    rank = models.IntegerField(default=0)
-    QB = models.CharField(max_length=20, default='N/A')
-    RB1 = models.CharField(max_length=20,default='N/A')
-    RB2 = models.CharField(max_length=20,default='N/A')
-    WR1 = models.CharField(max_length=20,default='N/A')
-    WR2 = models.CharField(max_length=20,default='N/A')
-    TE = models.CharField(max_length=20,default='N/A')
-    FLX = models.CharField(max_length=20,default='N/A')
-    K = models.CharField(max_length=20,default='N/A')
-    DEF = models.CharField(max_length=20,default='N/A')
-    BN1 = models.CharField(max_length=20,default='N/A')
-    BN2 = models.CharField(max_length=20,default='N/A')
-    BN3 = models.CharField(max_length=20,default='N/A')
-    BN4 = models.CharField(max_length=20,default='N/A')
-    BN5 = models.CharField(max_length=20,default='N/A')
-    BN6 = models.CharField(max_length=20,default='N/A')
-    IR1 = models.CharField(max_length=20,default='N/A')
-    IR2 = models.CharField(max_length=20,default='N/A')
-
-
-    def __str__(self):
-        return f"{self.title} {self.author}"
-
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     date_of_birth = models.DateField(null=True, blank=True)
@@ -66,38 +37,48 @@ class League(models.Model):
 
 
 class Team(models.Model):
-    name = models.CharField(max_length=255)
-    manager = models.ForeignKey(User, on_delete=models.CASCADE, related_name="owned_teams")
-    league = models.ForeignKey(League, on_delete=models.CASCADE, related_name="teams")
+    title = models.CharField(max_length=100, default='N/A')
+    author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="ReDraft", default=-1)
+    league = models.ForeignKey(League, on_delete=models.CASCADE, related_name="teams", default=-1)
+    rank = models.IntegerField(default=0)
     QB = models.CharField(max_length=20, default='N/A')
-    RB1 = models.CharField(max_length=20, default='N/A')
-    RB2 = models.CharField(max_length=20, default='N/A')
-    WR1 = models.CharField(max_length=20, default='N/A')
-    WR2 = models.CharField(max_length=20, default='N/A')
-    TE = models.CharField(max_length=20, default='N/A')
-    FLX = models.CharField(max_length=20, default='N/A')
-    K = models.CharField(max_length=20, default='N/A')
-    DEF = models.CharField(max_length=20, default='N/A')
-    BN1 = models.CharField(max_length=20, default='N/A')
-    BN2 = models.CharField(max_length=20, default='N/A')
-    BN3 = models.CharField(max_length=20, default='N/A')
-    BN4 = models.CharField(max_length=20, default='N/A')
-    BN5 = models.CharField(max_length=20, default='N/A')
-    BN6 = models.CharField(max_length=20, default='N/A')
-    IR1 = models.CharField(max_length=20, default='N/A')
-    IR2 = models.CharField(max_length=20, default='N/A')
+    RB1 = models.CharField(max_length=20,default='N/A')
+    RB2 = models.CharField(max_length=20,default='N/A')
+    WR1 = models.CharField(max_length=20,default='N/A')
+    WR2 = models.CharField(max_length=20,default='N/A')
+    TE = models.CharField(max_length=20,default='N/A')
+    FLX = models.CharField(max_length=20,default='N/A')
+    K = models.CharField(max_length=20,default='N/A')
+    DEF = models.CharField(max_length=20,default='N/A')
+    BN1 = models.CharField(max_length=20,default='N/A')
+    BN2 = models.CharField(max_length=20,default='N/A')
+    BN3 = models.CharField(max_length=20,default='N/A')
+    BN4 = models.CharField(max_length=20,default='N/A')
+    BN5 = models.CharField(max_length=20,default='N/A')
+    BN6 = models.CharField(max_length=20,default='N/A')
+    IR1 = models.CharField(max_length=20,default='N/A')
+    IR2 = models.CharField(max_length=20,default='N/A')
+
 
 
     def __str__(self):
-        return f"{self.name} ({self.owner.display_name}'s team in {self.league.name})"
+        return f"{self.title} {self.author}"
 
 
 class Draft(models.Model):
     league = models.OneToOneField(League, on_delete=models.CASCADE)
-    current_pick = models.IntegerField(default=1)
+    current_pick = models.IntegerField(default=0)  # Track the current pick index
     draft_order = models.JSONField()  # List of user IDs in draft order
     picks = models.JSONField(default=list)  # List of picks made
 
     def get_next_pick(self):
-        # Implement snake draft logic to get the next pick
-        pass
+        # Determine the next user in the snake draft order
+        total_users = len(self.draft_order)
+        round_number = self.current_pick // total_users
+        index_in_round = self.current_pick % total_users
+
+        # Reverse the order every other round for the snake pattern
+        if round_number % 2 == 1:
+            index_in_round = total_users - 1 - index_in_round
+
+        return self.draft_order[index_in_round]

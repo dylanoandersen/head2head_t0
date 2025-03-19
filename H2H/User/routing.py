@@ -1,6 +1,6 @@
-from django.urls import path
-from . import consumers
+from django.urls import re_path
+from User.consumers import DraftConsumer
 
 websocket_urlpatterns = [
-    path('ws/draft/<int:league_id>/', consumers.DraftConsumer.as_asgi()),
+    re_path(r'ws/draft/(?P<league_id>\d+)/$', DraftConsumer.as_asgi()),
 ]
