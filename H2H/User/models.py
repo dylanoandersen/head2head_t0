@@ -4,6 +4,13 @@ import uuid
 
 
 # Create your models here.
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    date_of_birth = models.DateField(null=True, blank=True)
+    profile_picture = models.ImageField(upload_to='profile_pictures/', null=True, blank=True)
+
+    def __str__(self):
+        return self.user.username
 
 class League(models.Model):
     name = models.CharField(max_length=255, unique=True)
@@ -15,16 +22,21 @@ class League(models.Model):
     private = models.BooleanField(default=False)  # True = Private, False = Public
     join_code = models.CharField(max_length=6, unique=True, blank=True, null=True)  # Code for private leagues
     users = models.ManyToManyField(User, related_name="joined_leagues", blank=True)  # Users in the league
+    draftStarted = models.BooleanField(default=False)  # Add this line
+    draftComplete = models.BooleanField(default=False)  # New field
 
     def save(self, *args, **kwargs):
         if self.private and not self.join_code:
             self.join_code = str(uuid.uuid4())[:10]  # Generate a random 10-character code for private leagues
         super().save(*args, **kwargs)
 
+        if self.owner not in self.users.all():
+            self.users.add(self.owner)
+
     def __str__(self):
         return f"{self.name} - {'Private' if self.private else 'Public'}"
-class Team(models.Model):  # Class names should be in PascalCase
 
+class Team(models.Model):
     title = models.CharField(max_length=100, default='N/A')
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="ReDraft", default=-1)
     league = models.ForeignKey(League, on_delete=models.CASCADE, related_name="teams", default=-1)
@@ -47,14 +59,23 @@ class Team(models.Model):  # Class names should be in PascalCase
     IR1 = models.CharField(max_length=20,default='N/A')
     IR2 = models.CharField(max_length=20,default='N/A')
 
-
     def __str__(self):
         return f"{self.title} {self.author}"
 
-class Profile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    date_of_birth = models.DateField(null=True, blank=True)
-    profile_picture = models.ImageField(upload_to='profile_pictures/', null=True, blank=True)
+class Draft(models.Model):
+    league = models.OneToOneField(League, on_delete=models.CASCADE)
+    current_pick = models.IntegerField(default=0)  # Track the current pick index
+    draft_order = models.JSONField()  # List of user IDs in draft order
+    picks = models.JSONField(default=list)  # List of picks made
 
-    def __str__(self):
-        return self.user.username
+    def get_next_pick(self):
+        # Determine the next user in the snake draft order
+        total_users = len(self.draft_order)
+        round_number = self.current_pick // total_users
+        index_in_round = self.current_pick % total_users
+
+        # Reverse the order every other round for the snake pattern
+        if round_number % 2 == 1:
+            index_in_round = total_users - 1 - index_in_round
+
+        return self.draft_order[index_in_round]

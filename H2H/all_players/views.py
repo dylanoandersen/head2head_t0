@@ -79,11 +79,29 @@ def player_news(request,id):
 
 @api_view(['POST'])
 def topTenPlayers(request):
-    if request.method == 'POST':
+    search_query = request.data.get("name", "").strip()  # Get search term from request data
+
+    if search_query:
+        # Split search query into words
+        name_parts = search_query.split()
+        
+        if len(name_parts) == 2:
+            # If two words (assume first and last name)
+            first_name, last_name = name_parts
+            players = Player.objects.filter(
+                Q(firstName__icontains=first_name) & Q(lastName__icontains=last_name)
+            ).order_by('-yearly_proj')[:10]
+        else:
+            # If single word, search both first and last name fields
+            players = Player.objects.filter(
+                Q(firstName__icontains=search_query) | Q(lastName__icontains=search_query)
+            ).order_by('-yearly_proj')[:10]
+    else:
+        # If no search term, return top 10 yearly projected players
         players = Player.objects.all().order_by('-yearly_proj')[:10]
-        serializer = PlayerInfoSerializer(players, many=True)
-        return Response({"TopTen": serializer.data})
-    return Response(status=status.HTTP_400_BAD_REQUEST)
+
+    serializer = PlayerInfoSerializer(players, many=True)
+    return Response({"TopTen": serializer.data})
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
