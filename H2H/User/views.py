@@ -2,6 +2,8 @@ from django.contrib.auth import authenticate
 from django.shortcuts import render
 
 from .models import Profile, League, Team
+from django.forms.models import model_to_dict
+from all_players.models import Player, Player_Stats
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
 from django.http import JsonResponse
@@ -12,7 +14,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status, generics, permissions
 import logging
-from .serializers import UserSerializer, ProfileSerializer, LeagueSerializer, TeamSerializer
+from .serializers import UserSerializer, ProfileSerializer, LeagueSerializer, TeamSerializer, PlayerSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -93,8 +95,60 @@ class VerifyTokenView(APIView):
             return Response({'username': user.username}, status=200)
         except (InvalidToken, TokenError) as e:
             return Response({'error': str(e)}, status=401)
+        
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def myPlayers(request):
+    objectList = []
+    pointList = []
+    player_parms = request.GET.get('players', None)
+    player_list = player_parms.split(',') if player_parms else []
+    print(f"Player List: {player_list}")  # Log the player list
+    for id in player_list:
+        if id == "N/A":
+        # Create a placeholder "empty" player object (not saved to the DB)
+            empty_player = Player(
+                id=None,
+                firstName="Empty",
+                lastName="",
+                status="x",
+                position="",
+                team="",
+            )
+            setattr(empty_player, 'proj_fantasy', None)
+            setattr(empty_player, 'total_fantasy_points', None)
+            objectList.append(empty_player)
+            continue
+        currentP = Player.objects.get(id=id)
+        try:
+            latest = Player_Stats.objects.get(player=currentP, week=1)
+            setattr(currentP, 'proj_fantasy', latest.proj_fantasy)  # Attach to Player object
+            setattr(currentP, 'total_fantasy_points', latest.total_fantasy_points)  # Attach to Player object
+        except:
+            setattr(currentP, 'proj_fantasy', None)  # Set default if no stats
+            setattr(currentP, 'total_fantasy_points', None)
 
+        objectList.append(currentP)
 
+    serializer = PlayerSerializer(objectList, many=True)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def userTeam(request, LID):
+    UID = request.user.id
+    if request.method == 'GET':
+        try:
+            league = League.objects.get(id=LID)
+            user = User.objects.get(id=UID)
+            team = Team.objects.get(league=league, author=user)
+        except (League.DoesNotExist, User.DoesNotExist, Team.DoesNotExist):
+            return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+    else:
+        return Response({"error": "Invalid request method"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    serializer = TeamSerializer(team)
+    return Response(serializer.data)
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])

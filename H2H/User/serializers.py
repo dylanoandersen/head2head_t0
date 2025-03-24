@@ -1,6 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 from .models import Profile, League, Team
+from all_players.models import Player
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -17,18 +18,23 @@ class UserSerializer(serializers.ModelSerializer):
             last_name=validated_data['last_name']
         )
         return user
-
-# add more later
-class ReDraftSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Team
-        fields = ['id', 'title', 'author', 'QB', 'RB1', 'RB2', 'WR1', ]
-
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = Profile
         fields = ['date_of_birth', 'profile_picture']
 
+class PlayerSerializer(serializers.ModelSerializer):
+    proj_fantasy = serializers.SerializerMethodField()
+    total_fantasy_points = serializers.SerializerMethodField()
+    class Meta:
+        model = Player
+        fields = ['id', 'firstName', 'lastName', 'status', 'position', 'team', 'proj_fantasy', 'total_fantasy_points']  # Include new fields
+
+    def get_proj_fantasy(self, obj):
+        return getattr(obj, 'proj_fantasy', None)  # Get dynamically attached field
+
+    def get_total_fantasy_points(self, obj):
+        return getattr(obj, 'total_fantasy_points', None)  # Get dynamically attached field
 
 
 class LeagueSerializer(serializers.ModelSerializer):
@@ -48,8 +54,10 @@ class LeagueSerializer(serializers.ModelSerializer):
 
         league = League.objects.create(**validated_data)
         return league
-
 class TeamSerializer(serializers.ModelSerializer):
+    league = LeagueSerializer(read_only=True)
+    author = UserSerializer(read_only=True)
     class Meta:
         model = Team
-        fields = '__all__'
+        fields = ['id', 'title', 'QB', 'RB1', 'RB2', 'WR1', 'WR2', 'TE', 'FLX', 'K', 'DEF', 
+                  'BN1', 'BN2', 'BN3', 'BN4', 'BN5', 'BN6', 'IR1', 'IR2', 'author', 'league', 'rank']
