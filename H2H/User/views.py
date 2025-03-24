@@ -14,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework import status, generics, permissions
 import logging
 from .serializers import UserSerializer, ProfileSerializer, LeagueSerializer, TeamSerializer
+import random
 
 logger = logging.getLogger(__name__)
 
@@ -90,6 +91,7 @@ def make_pick(request, league_id):
 
     return Response({'success': 'Pick made successfully'}, status=status.HTTP_200_OK)
 
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def start_draft(request, league_id):
@@ -101,22 +103,52 @@ def start_draft(request, league_id):
     if request.user != league.owner:
         return Response({'error': 'You are not the owner of this league'}, status=status.HTTP_403_FORBIDDEN)
 
+    if league.draftStarted:
+        return Response({'error': 'Draft has already started'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Randomize the draft order
+    users = list(league.users.all())
+    if not users:
+        return Response({'error': 'No users in the league to start the draft'}, status=status.HTTP_400_BAD_REQUEST)
+
+    random.shuffle(users)
+    draft_order = [user.id for user in users]
+
+    # Create or update the draft
+    draft, created = Draft.objects.get_or_create(league=league, defaults={
+        'draft_order': draft_order,
+        'current_pick': 0,
+        'picks': []
+    })
+
+    if not created:
+        draft.draft_order = draft_order
+        draft.current_pick = 0
+        draft.picks = []
+        draft.save()
+
     league.draftStarted = True
     league.save()
-    return Response({'success': 'Draft started successfully'}, status=status.HTTP_200_OK)
+
+    # Assign the draft URL
+    draft_url = f"/draft/{league_id}/"
+    logger.info(f"Draft started successfully. Draft URL: {draft_url}")
+    return Response({'success': 'Draft started successfully', 'draft_url': draft_url}, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def check_draft_status(request, league_id):
     try:
         league = League.objects.get(id=league_id)
-    except League.DoesNotExist:
-        return Response({'error': 'League not found'}, status=status.HTTP_404_NOT_FOUND)
+        draft = Draft.objects.get(league=league)
+    except (League.DoesNotExist, Draft.DoesNotExist):
+        return Response({'error': 'League or draft not found'}, status=status.HTTP_404_NOT_FOUND)
 
     if request.user not in league.users.all() and request.user != league.owner:
         return Response({'error': 'You are not a member of this league'}, status=status.HTTP_403_FORBIDDEN)
 
-    return Response({'draftStarted': league.draftStarted}, status=status.HTTP_200_OK)
+    current_pick_user = draft.get_next_pick()
+    return Response({'draftStarted': league.draftStarted, 'currentPickUser': current_pick_user}, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -131,6 +163,37 @@ def check_league_membership(request, league_id):
 
     return Response({'success': 'User is a member of the league'}, status=status.HTTP_200_OK)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def verify_current_pick_user(request, league_id):
+    try:
+        league = League.objects.get(id=league_id)
+        draft = Draft.objects.get(league=league)
+    except (League.DoesNotExist, Draft.DoesNotExist):
+        return Response({'error': 'League or draft not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    # Get the current pick user from the draft
+    current_pick_user = draft.get_next_pick()
+
+    # Check if the logged-in user matches the current pick user
+    is_current_pick_user = request.user.id == current_pick_user
+
+    return Response({
+        'isCurrentPickUser': is_current_pick_user,
+        'currentPickUser': current_pick_user,
+        'loggedInUserId': request.user.id
+    }, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_draft_picks(request, league_id):
+    try:
+        league = League.objects.get(id=league_id)
+        draft = Draft.objects.get(league=league)
+    except (League.DoesNotExist, Draft.DoesNotExist):
+        return Response({'error': 'League or draft not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    return Response({'picks': draft.picks}, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
@@ -150,6 +213,17 @@ def register_user(request):
         logger.error("User validation errors: %s", user_serializer.errors)
         return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_by_id(request, user_id):
+    try:
+        user = User.objects.get(id=user_id)
+        print("username is",user.username)
+        return Response({'username': user.username}, status=status.HTTP_200_OK)
+    except User.DoesNotExist:
+        return Response({'error': 'User not found'}, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -295,6 +369,10 @@ def create_league(request):
     serializer = LeagueSerializer(data=request.data, context={'request': request})
     if serializer.is_valid():
         league = serializer.save()
+
+        league.users.add(request.user)
+
+
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

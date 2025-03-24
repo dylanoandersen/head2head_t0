@@ -25,12 +25,16 @@ class League(models.Model):
     join_code = models.CharField(max_length=6, unique=True, blank=True, null=True)  # Code for private leagues
     users = models.ManyToManyField(User, related_name="joined_leagues", blank=True)  # Users in the league
     draftStarted = models.BooleanField(default=False)  # Add this line
+    draftComplete = models.BooleanField(default=False)  # New field
 
 
     def save(self, *args, **kwargs):
         if self.private and not self.join_code:
             self.join_code = str(uuid.uuid4())[:10]  # Generate a random 10-character code for private leagues
         super().save(*args, **kwargs)
+
+        if self.owner not in self.users.all():
+            self.users.add(self.owner)
 
     def __str__(self):
         return f"{self.name} - {'Private' if self.private else 'Public'}"
