@@ -45,7 +45,7 @@ class LeagueSerializer(serializers.ModelSerializer):
     class Meta:
         model = League
         fields = ['id', 'name', 'owner', 'draft_date', 'time_per_pick', 'positional_betting',
-                  'max_capacity', 'private', 'join_code', 'users', 'teams']
+                  'max_capacity', 'private', 'join_code', 'users', 'teams', 'draftStarted', 'draftComplete']
 
     def create(self, validated_data):
         request = self.context.get('request', None)
