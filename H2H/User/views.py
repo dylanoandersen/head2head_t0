@@ -148,7 +148,11 @@ def check_draft_status(request, league_id):
         return Response({'error': 'You are not a member of this league'}, status=status.HTTP_403_FORBIDDEN)
 
     current_pick_user = draft.get_next_pick()
-    return Response({'draftStarted': league.draftStarted, 'currentPickUser': current_pick_user}, status=status.HTTP_200_OK)
+    return Response({
+        'draftStarted': league.draftStarted,
+        'draftComplete': league.draftComplete,  # Include draftComplete in the response
+        'currentPickUser': current_pick_user
+    }, status=status.HTTP_200_OK)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
