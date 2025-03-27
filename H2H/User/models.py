@@ -11,8 +11,6 @@ class Profile(models.Model):
 
     def __str__(self):
         return self.user.username
-    
-
 
 class League(models.Model):
     name = models.CharField(max_length=255, unique=True)
@@ -27,7 +25,6 @@ class League(models.Model):
     draftStarted = models.BooleanField(default=False)  # Add this line
     draftComplete = models.BooleanField(default=False)  # New field
 
-
     def save(self, *args, **kwargs):
         if self.private and not self.join_code:
             self.join_code = str(uuid.uuid4())[:10]  # Generate a random 10-character code for private leagues
@@ -38,7 +35,6 @@ class League(models.Model):
 
     def __str__(self):
         return f"{self.name} - {'Private' if self.private else 'Public'}"
-
 
 class Team(models.Model):
     title = models.CharField(max_length=100, default='N/A')
@@ -63,11 +59,8 @@ class Team(models.Model):
     IR1 = models.CharField(max_length=20,default='N/A')
     IR2 = models.CharField(max_length=20,default='N/A')
 
-
-
     def __str__(self):
         return f"{self.title} {self.author}"
-
 
 class Draft(models.Model):
     league = models.OneToOneField(League, on_delete=models.CASCADE)
