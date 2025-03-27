@@ -242,8 +242,6 @@ def get_user_info(request):
         'profile': profile_serializer.data
     })
 
-
-
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def update_user_info(request):
@@ -260,6 +258,7 @@ def update_user_info(request):
     else:
         logger.error("User validation errors: %s", user_serializer.errors)
         return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
 class CreateUserView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
