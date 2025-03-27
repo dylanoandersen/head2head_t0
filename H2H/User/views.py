@@ -291,7 +291,6 @@ class VerifyTokenView(APIView):
 @permission_classes([permissions.IsAuthenticated])
 def myPlayers(request):
     objectList = []
-    pointList = []
     player_parms = request.GET.get('players', None)
     player_list = player_parms.split(',') if player_parms else []
     print(f"Player List: {player_list}")  # Log the player list
@@ -306,8 +305,17 @@ def myPlayers(request):
                 position="",
                 team="",
             )
-            setattr(empty_player, 'proj_fantasy', None)
-            setattr(empty_player, 'total_fantasy_points', None)
+            setattr(currentP, 'proj_fantasy', None)  # Set default if no stats
+            setattr(currentP, 'total_fantasy_points', None)
+            setattr(currentP, 'pass_yards', None)
+            setattr(currentP, 'pass_tds', None)
+            setattr(currentP, 'receiving_yards', None)
+            setattr(currentP, 'receiving_tds', None)
+            setattr(currentP, 'rush_yards', None)
+            setattr(currentP, 'rush_tds', None)
+            setattr(currentP, 'fg_made', None)
+            setattr(currentP, 'extra_points_made', None)
+
             objectList.append(empty_player)
             continue
         currentP = Player.objects.get(id=id)
@@ -315,11 +323,30 @@ def myPlayers(request):
             latest = Player_Stats.objects.get(player=currentP, week=1)
             setattr(currentP, 'proj_fantasy', latest.proj_fantasy)  # Attach to Player object
             setattr(currentP, 'total_fantasy_points', latest.total_fantasy_points)  # Attach to Player object
+            setattr(currentP, 'pass_yards', latest.pass_yards)
+            setattr(currentP, 'pass_tds', latest.pass_tds)
+            setattr(currentP, 'receiving_yards', latest.receiving_yards)
+            setattr(currentP, 'receiving_tds', latest.receiving_tds)
+            setattr(currentP, 'rush_yards', latest.rush_yards)
+            setattr(currentP, 'rush_tds', latest.rush_tds)
+            setattr(currentP, 'fg_made', latest.fg_made)
+            setattr(currentP, 'extra_points_made', latest.extra_points_made)
         except:
             setattr(currentP, 'proj_fantasy', None)  # Set default if no stats
             setattr(currentP, 'total_fantasy_points', None)
+            setattr(currentP, 'pass_yards', None)
+            setattr(currentP, 'pass_tds', None)
+            setattr(currentP, 'receiving_yards', None)
+            setattr(currentP, 'receiving_tds', None)
+            setattr(currentP, 'rush_yards', None)
+            setattr(currentP, 'rush_tds', None)
+            setattr(currentP, 'fg_made', None)
+            setattr(currentP, 'extra_points_made', None)
 
         objectList.append(currentP)
+        print(f"Player {currentP.firstName} {currentP.lastName} attributes:")
+        for attr, value in vars(currentP).items():
+            print(f"  {attr}: {value}")
 
     serializer = PlayerSerializer(objectList, many=True)
     return Response(serializer.data)

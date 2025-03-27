@@ -79,3 +79,17 @@ class Draft(models.Model):
             index_in_round = total_users - 1 - index_in_round
 
         return self.draft_order[index_in_round]
+
+class Matchup(models.Model):
+    league = models.ForeignKey(League, on_delete=models.CASCADE)
+    week = models.IntegerField(default=0)
+    
+    team1 = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='matchups_as_team1'
+    )
+    team2 = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='matchups_as_team2'
+    )
+    
+    team1score = models.DecimalField(max_digits=5, decimal_places=2)
+    team2score = models.DecimalField(max_digits=5, decimal_places=2)

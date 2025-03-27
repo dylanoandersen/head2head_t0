@@ -1,6 +1,13 @@
 import json
+import random
+import itertools
+import math
 from channels.generic.websocket import AsyncWebsocketConsumer
 from asgiref.sync import sync_to_async
+from django.db import connection
+from .models import League, Matchup
+from all_players.models import Player
+from django.contrib.auth.models import User
 
 
 class DraftConsumer(AsyncWebsocketConsumer):
@@ -115,6 +122,7 @@ class DraftConsumer(AsyncWebsocketConsumer):
         if all_positions_filled:
             league.draftComplete = True
             await sync_to_async(league.save)()
+            await self.matchUp_creation()
 
             # Notify all users that the draft is complete
             await self.channel_layer.group_send(
@@ -151,8 +159,92 @@ class DraftConsumer(AsyncWebsocketConsumer):
     
     async def draft_complete(self, event):
         await self.send(text_data=json.dumps({
-            'message': {
+                'message': {
                 'type': 'draft_complete',
                 'content': event['message']
             }
         }))
+
+    async def get_dynamic_table_data(self, league_id):
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT user_id FROM User_league_users WHERE league_id = %s", [league_id]
+            )
+            columns = [col[0] for col in cursor.description]
+            results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+        return results
+
+    async def matchUp_creation(self):
+        players = await self.get_dynamic_table_data(self.league_id)
+        player_ids = [p['user_id'] for p in players]
+        if len(player_ids) % 2 != 0:
+            player_ids.append(None)  # None represents a bye
+        league = await sync_to_async(League.objects.get)(id=self.league_id)
+
+        # Generate all unique unordered matchups
+        all_matchups = list(itertools.combinations(player_ids, 2))
+        random.shuffle(all_matchups)
+
+        used_matchups = set()
+        rounds = []
+
+        while len(rounds) < 15:
+            current_round = []
+            players_used = set()
+
+            for p1, p2 in all_matchups:
+                match = tuple(sorted((p1, p2)))  # canonical form for unordered
+
+                if match in used_matchups:
+                    continue
+                if p1 in players_used or p2 in players_used:
+                    continue
+
+                used_matchups.add(match)
+                current_round.append(match)
+                players_used.update([p for p in (p1,p2) if p is not None])
+
+                if len(current_round) == len(player_ids) // 2:
+                    break  # round is full
+
+            if current_round:
+                rounds.append(current_round)
+
+            # If all matchups are exhausted, reshuffle and start reusing
+            if len(used_matchups) == len(all_matchups):
+                used_matchups = set()
+                random.shuffle(all_matchups)
+
+        # Save matchups to DB
+        for week_num, week in enumerate(rounds, 1):
+            for team1_id, team2_id in week:
+                # Handle bye matchups
+                if team1_id is None or team2_id is None:
+                    real_team_id = team1_id or team2_id
+                    real_team = await sync_to_async(User.objects.get)(id=real_team_id)
+
+                    await sync_to_async(Matchup.objects.update_or_create)(
+                        league=league,
+                        week=week_num,
+                        team1=real_team,
+                        team2=None,  # or a special ByeUser if your model requires it
+                        defaults={
+                            'team1score': 0,
+                            'team2score': 0,
+                            # maybe include 'is_bye': True if you track it
+                        }
+                    )
+                else:
+                    team1 = await sync_to_async(User.objects.get)(id=team1_id)
+                    team2 = await sync_to_async(User.objects.get)(id=team2_id)
+
+                    await sync_to_async(Matchup.objects.update_or_create)(
+                        league=league,
+                        week=week_num,
+                        team1=team1,
+                        team2=team2,
+                        defaults={
+                            'team1score': 0,
+                            'team2score': 0
+                        }
+                    )
