@@ -158,9 +158,11 @@ class DraftConsumer(AsyncWebsocketConsumer):
         }))
     
     async def draft_complete(self, event):
-        # Send the draft complete message to WebSocket
         await self.send(text_data=json.dumps({
-            'message': event['message']
+                'message': {
+                'type': 'draft_complete',
+                'content': event['message']
+            }
         }))
 
     async def get_dynamic_table_data(self, league_id):
