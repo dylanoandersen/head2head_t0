@@ -26,15 +26,39 @@ class ProfileSerializer(serializers.ModelSerializer):
 class PlayerSerializer(serializers.ModelSerializer):
     proj_fantasy = serializers.SerializerMethodField()
     total_fantasy_points = serializers.SerializerMethodField()
+    pass_yards = serializers.SerializerMethodField()
+    pass_tds = serializers.SerializerMethodField()
+    receiving_yards = serializers.SerializerMethodField()
+    receiving_tds = serializers.SerializerMethodField()
+    rush_yards = serializers.SerializerMethodField()
+    rush_tds = serializers.SerializerMethodField()
+    extra_points_made = serializers.SerializerMethodField()
+    fg_made = serializers.SerializerMethodField()
     class Meta:
         model = Player
-        fields = ['id', 'firstName', 'lastName', 'status', 'position', 'team', 'proj_fantasy', 'total_fantasy_points']  # Include new fields
+        fields = ['id', 'firstName', 'lastName', 'status', 'position', 'team', 'proj_fantasy', 'total_fantasy_points', 
+                  'pass_yards', 'pass_tds', 'receiving_yards', 'receiving_tds', 'rush_yards', 'rush_tds', 'fg_made', 'extra_points_made']
 
     def get_proj_fantasy(self, obj):
         return getattr(obj, 'proj_fantasy', None)  # Get dynamically attached field
-
     def get_total_fantasy_points(self, obj):
         return getattr(obj, 'total_fantasy_points', None)  # Get dynamically attached field
+    def get_pass_yards(self, obj):
+        return getattr(obj, 'pass_yards', None)
+    def get_pass_tds(self, obj):
+        return getattr(obj, 'pass_tds', None)
+    def get_receiving_yards(self, obj):
+        return getattr(obj, 'receiving_yards', None)
+    def get_receiving_tds(self, obj):
+        return getattr(obj, 'receiving_tds', None)
+    def get_rush_yards(self, obj):
+        return getattr(obj, 'rush_yards', None)
+    def get_rush_tds(self, obj):
+        return getattr(obj, 'rush_tds', None)
+    def get_fg_made(self, obj):
+        return getattr(obj, 'fg_made', None)
+    def get_extra_points_made(self, obj):
+        return getattr(obj, 'extra_points_made', None)
 
 
 class LeagueSerializer(serializers.ModelSerializer):

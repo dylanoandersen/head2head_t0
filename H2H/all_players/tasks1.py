@@ -2,15 +2,21 @@ import os
 import django
 import requests
 import pytz
+import sys
+from django.db import connection
+from asgiref.sync import sync_to_async
+import asyncio
 from datetime import datetime, date, timedelta
 from django.core.files.base import ContentFile
 
 # Ensure Django settings are loaded
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "head2head.settings")
 django.setup()  # Initializes Django (uncomment if required to load Django models)
 
 from .espn_api import fetch_espn_data, get_game_stats, fetch_player_positions, get_stats, game_details, get_def_stats, get_pts_proj, get_totalYearly_proj, player_news, player_headshots, get_bye_teams
 from .models import Player, Game, Player_Stats, Player_News, Def_Stats
+from User.models import League
 
 team_id = [(1, 'Falcons'), (2, 'Bills'), (3, 'Bears'), (4, 'Bengals'), (5, 'Browns'), (6, 'Cowboys'), (7, 'Broncos'), (8, 'Lions'), (9, 'Packers'), (34, 'Texans'), (11, 'Colts'), (30, 'Jaguars'), (12, 'Chiefs'), (14, 'Rams'), (24, 'Chargers'), (15, 'Dolphins'), (16, 'Vikings'), (17, 'Patriots'), (18, 'Saints'), (19, 'Giants'), (20, 'Jets'), (13, 'Raiders'), (21, 'Eagles'), (23, 'Steelers'), (25, '49ers'), (26, 'Seahawks'), (27, 'Buccaneers'), (10, 'Titans'), (22, 'Cardinals'), (28, 'Commanders'), (33, 'Ravens'), (29, 'Panthers')]
 team_dict = dict(team_id)
@@ -259,3 +265,20 @@ def team_bye():
         except:
             print("No teams on bye")
             continue
+
+def get_dynamic_table_data(league_id):
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT * FROM User_league_users WHERE league_id = %s", [league_id]
+        )
+        columns = [col[0] for col in cursor.description]
+        results = [dict(zip(columns, row)) for row in cursor.fetchall()]
+    return results
+
+async def get_league():
+    return await sync_to_async(League.objects.get)(id=1)
+
+players =  get_dynamic_table_data(1)
+league =  asyncio.run(get_league())
+print(players)
+print(league.id)
