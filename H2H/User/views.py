@@ -15,8 +15,54 @@ from rest_framework import status, generics, permissions
 import logging
 from .serializers import UserSerializer, ProfileSerializer, LeagueSerializer, TeamSerializer
 import random
+from django.core.paginator import Paginator
 
 logger = logging.getLogger(__name__)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def leave_league(request, league_id):
+    try:
+        league = League.objects.get(id=league_id)
+    except League.DoesNotExist:
+        return Response({"error": "League not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if league.draftStarted:
+        return Response({"error": "Cannot leave a league after the draft has started."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.user == league.owner:
+        return Response({"error": "Owners cannot leave their own league. They must delete it instead."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.user not in league.users.all():
+        return Response({"error": "You are not a member of this league."}, status=status.HTTP_403_FORBIDDEN)
+
+    league.users.remove(request.user)
+    return Response({"message": "Successfully left the league."}, status=status.HTTP_200_OK)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_league(request, league_id):
+    logger.info(f"Received request to delete league with ID: {league_id} by user: {request.user.username}")
+
+    try:
+        league = League.objects.get(id=league_id)
+    except League.DoesNotExist:
+        logger.error(f"League with ID {league_id} not found.")
+        return Response({"error": "League not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.user != league.owner:
+        logger.error(f"User {request.user.username} is not the owner of league {league_id}.")
+        return Response({"error": "Only the owner can delete this league."}, status=status.HTTP_403_FORBIDDEN)
+
+    if league.draftStarted:
+        logger.error(f"Cannot delete league {league_id} because the draft has started.")
+        return Response({"error": "Cannot delete a league after the draft has started."}, status=status.HTTP_400_BAD_REQUEST)
+
+    league.delete()
+    logger.info(f"League with ID {league_id} successfully deleted.")
+    return Response({"message": "League successfully deleted."}, status=status.HTTP_200_OK)
 
 
 @api_view(['PUT'])
@@ -333,34 +379,94 @@ def join_public_league(request, league_id):
 
 
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
 def search_league(request):
-    if request.method == "GET":
-        name_query = request.GET.get("name", "").strip()
-        print(f"Search Term: {name_query}")  # Log the search term
+    name_query = request.GET.get("name", "").strip()  # Search by name
+    is_private = request.GET.get("private", None)  # Filter by private/public
+    positional_betting = request.GET.get("positional_betting", None)  # Filter by positional betting
+    draft_status = request.GET.get("draft_status", None)  # Filter by draft status
+    draft_date = request.GET.get("draft_date", None)  # Filter by draft date (before/after)
+    page = int(request.GET.get("page", 1))  # Pagination
+    leagues_per_page = 10  # Leagues per page
 
-        if not name_query:
-            return JsonResponse({"error": "No name provided"}, status=400)
+    leagues = League.objects.all()
 
-        # Ensure filtering works correctly
-        leagues = League.objects.filter(name__icontains=name_query)
-        print(f"Leagues Found: {list(leagues.values('id', 'name'))}")  # Log the filtered leagues
+    # Debugging: Print initial query
+    print(f"Initial leagues query: {leagues}")
 
-        if not leagues.exists():
-            return JsonResponse({"results": []})
+    # Apply filters
+    if name_query:
+        leagues = leagues.filter(name__icontains=name_query)
+        print(f"Filtered by name: {name_query}")
 
-        league_data = [
-            {
-                "id": league.id,
-                "name": league.name,
-                "owner": league.owner.username,
-                "draft_date": league.draft_date,
-            }
-            for league in leagues
-        ]
+    if is_private is not None and is_private != "":
+        if is_private == "1":
+            leagues = leagues.filter(private=True)
+        elif is_private == "0":
+            leagues = leagues.filter(private=False)
+        print(f"Filtered by private: {is_private}")
+    else:
+        print("No filtering applied for private/public.")
 
-        return JsonResponse({"results": league_data})
+    if positional_betting is not None and positional_betting != "":
+        if positional_betting == "1":
+            leagues = leagues.filter(positional_betting=True)
+        elif positional_betting == "0":
+            leagues = leagues.filter(positional_betting=False)
+        print(f"Filtered by positional_betting: {positional_betting}")
+    else:
+        print("No filtering applied for positional_betting.")
 
-    return JsonResponse({"error": "Invalid request method"}, status=405)
+    if draft_status is not None and draft_status != "":
+        if draft_status == "0":  # Not Started
+            leagues = leagues.filter(draftStarted=False, draftComplete=False)
+        elif draft_status == "1":  # In Progress
+            leagues = leagues.filter(draftStarted=True, draftComplete=False)
+        elif draft_status == "2":  # Completed
+            leagues = leagues.filter(draftComplete=True)
+        print(f"Filtered by draft_status: {draft_status}")
+    else:
+        print("No filtering applied for draft_status.")
+
+    if draft_date:
+        try:
+            date_filter = datetime.strptime(draft_date, "%Y-%m-%d")
+            leagues = leagues.filter(draft_date__gte=date_filter)  # Filter leagues after the given date
+            print(f"Filtered by draft_date: {draft_date}")
+        except ValueError:
+            print(f"Invalid draft_date format: {draft_date}")
+            return JsonResponse({"error": "Invalid date format. Use YYYY-MM-DD."}, status=400)
+
+    # Debugging: Print final query
+    print(f"Final leagues query: {leagues}")
+
+    # Paginate results
+    paginator = Paginator(leagues, leagues_per_page)
+    try:
+        paginated_leagues = paginator.get_page(page)
+    except Exception as e:
+        print(f"Pagination error: {str(e)}")
+        return JsonResponse({"error": "Invalid page number."}, status=400)
+
+    league_data = [
+        {
+            "id": league.id,
+            "name": league.name,
+            "owner": league.owner.username,
+            "draft_date": league.draft_date,
+            "private": league.private,
+            "positional_betting": league.positional_betting,
+            "draftStarted": league.draftStarted,
+            "draftComplete": league.draftComplete,
+        }
+        for league in paginated_leagues
+    ]
+
+    return JsonResponse({
+        "results": league_data,
+        "totalPages": paginator.num_pages
+    })
 
 
 @api_view(['POST'])
