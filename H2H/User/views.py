@@ -343,9 +343,6 @@ def myPlayers(request):
             setattr(currentP, 'extra_points_made', None)
 
         objectList.append(currentP)
-        print(f"Player {currentP.firstName} {currentP.lastName} attributes:")
-        for attr, value in vars(currentP).items():
-            print(f"  {attr}: {value}")
 
     serializer = PlayerSerializer(objectList, many=True)
     return Response(serializer.data)
@@ -366,6 +363,34 @@ def userTeam(request, LID):
 
     serializer = TeamSerializer(team)
     return Response(serializer.data)
+
+@api_view(['PUT'])
+@permission_classes([permissions.IsAuthenticated])
+def saveUserTeam(request):
+    data = request.data  # Get JSON payload
+    team_data = data.get('team')
+    team_id = team_data.get('id')  # Check if an ID exists
+
+    try:
+        team = Team.objects.get(id=team_id, author=request.user)
+        serializer = TeamSerializer(team, data=team_data, partial=True)  # Partial update
+        action = "updated"
+
+        print('checking serializer')
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"message": f"Team {action} successfully!", "team": serializer.data}, status=status.HTTP_200_OK)
+        if not serializer.is_valid():
+            print("❌ Serializer errors:", serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+    except League.DoesNotExist:
+        return Response({"error": "League not found"}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
