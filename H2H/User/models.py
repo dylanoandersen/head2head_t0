@@ -37,7 +37,7 @@ class League(models.Model):
         return f"{self.name} - {'Private' if self.private else 'Public'}"
 
 class Team(models.Model):
-    title = models.CharField(max_length=100, default='N/A')
+    title = models.CharField(max_length=100, default='N/A', blank=True)
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="ReDraft", default=-1)
     league = models.ForeignKey(League, on_delete=models.CASCADE, related_name="teams", default=-1)
     rank = models.IntegerField(default=0)
