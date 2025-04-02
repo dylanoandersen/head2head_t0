@@ -58,6 +58,10 @@ urlpatterns = [
     path('api/leagues/join/private/', user_views.join_private_league, name='join-private-league'),
     path('api/leagues/myleagues/', user_views.my_leagues, name='my-leagues'),
     path('api/leagues/check_join_code/<str:join_code>/', user_views.check_join_code, name='check-join-code'),
+    path('api/notifications/', user_views.get_notifications, name='get_notifications'),
+    path('api/notifications/<int:notification_id>/read/', user_views.mark_notification_as_read, name='mark_notification_as_read'),
+    path('api/notifications/<int:notification_id>/delete/', user_views.delete_notification, name='delete_notification'),
+    path('api/notifications/<int:notification_id>/unread/', user_views.mark_notification_as_unread, name='mark_notification_as_unread'),
 
 ]
 

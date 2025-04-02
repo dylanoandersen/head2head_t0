@@ -1,7 +1,7 @@
 from django.contrib.auth import authenticate
 from django.shortcuts import render
 from datetime import datetime;
-from .models import Profile, League, Team, Draft
+from .models import Profile, League, Team, Draft, Notification
 from all_players.models import Player  # Import the Player model from the all_players app
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
@@ -13,11 +13,83 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status, generics, permissions
 import logging
-from .serializers import UserSerializer, ProfileSerializer, LeagueSerializer, TeamSerializer
+from .serializers import UserSerializer, ProfileSerializer, LeagueSerializer, TeamSerializer, NotificationSerializer
 import random
 from django.core.paginator import Paginator
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 logger = logging.getLogger(__name__)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_notification_as_unread(request, notification_id):
+    try:
+        notification = Notification.objects.get(id=notification_id, user=request.user)
+        notification.is_read = False
+        notification.save()
+        return Response({'success': 'Notification marked as unread.'}, status=status.HTTP_200_OK)
+    except Notification.DoesNotExist:
+        return Response({'error': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+def notify_draft_start(league):
+    """Notify all users in the league that the draft has started."""
+    channel_layer = get_channel_layer()
+    for user in league.users.all():
+        # Create a notification in the database
+        notification = Notification.objects.create(
+            user=user,
+            message=f"The draft for {league.name} has started!",
+            link=f"/draft/{league.id}/"
+        )
+
+        # Send the notification via WebSocket
+        async_to_sync(channel_layer.group_send)(
+            f"notifications_{user.id}",
+            {
+                "type": "send_notification",
+                "message": {
+                    "id": notification.id,
+                    "message": notification.message,
+                    "link": notification.link,
+                    "is_read": notification.is_read,
+                    "created_at": str(notification.created_at),
+                },
+            },
+        )
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_notifications(request):
+    limit = request.query_params.get('limit', None)  # Optional query parameter
+    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
+    if limit:
+        notifications = notifications[:int(limit)]
+    serializer = NotificationSerializer(notifications, many=True)
+    return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_notification_as_read(request, notification_id):
+    try:
+        notification = Notification.objects.get(id=notification_id, user=request.user)
+        notification.is_read = True
+        notification.save()
+        return Response({'success': 'Notification marked as read.'}, status=status.HTTP_200_OK)
+    except Notification.DoesNotExist:
+        return Response({'error': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_notification(request, notification_id):
+    try:
+        notification = Notification.objects.get(id=notification_id, user=request.user)
+        notification.delete()
+        return Response({'success': 'Notification deleted.'}, status=status.HTTP_200_OK)
+    except Notification.DoesNotExist:
+        return Response({'error': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)
 
 
 @api_view(['POST'])
@@ -175,6 +247,10 @@ def start_draft(request, league_id):
 
     league.draftStarted = True
     league.save()
+
+
+    # Notify all users about the draft start
+    notify_draft_start(league)
 
     # Assign the draft URL
     draft_url = f"/draft/{league_id}/"

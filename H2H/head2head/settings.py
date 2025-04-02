@@ -66,7 +66,7 @@ INSTALLED_APPS = [
     'channels',
 ]
 
-ASGI_APPLICATION = 'H2H.asgi.application'
+ASGI_APPLICATION = 'head2head.asgi.application'
 
 CHANNEL_LAYERS = {
     "default": {
