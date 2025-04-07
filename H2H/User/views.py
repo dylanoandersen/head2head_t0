@@ -1,7 +1,7 @@
 from django.contrib.auth import authenticate
 from django.shortcuts import render
 from datetime import datetime;
-from .models import Profile, League, Team, Draft, Notification
+from .models import Profile, League, Team, Draft, Notification, Invite
 from all_players.models import Player  # Import the Player model from the all_players app
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
@@ -21,6 +21,125 @@ from channels.layers import get_channel_layer
 
 logger = logging.getLogger(__name__)
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_eligible_leagues(request, user_id):
+    try:
+        searched_user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Fetch leagues owned by the logged-in user
+    owned_leagues = request.user.owned_leagues.filter(draftStarted=False)
+
+    # Exclude leagues where the searched user is already a member
+    eligible_leagues = owned_leagues.exclude(users=searched_user)
+
+    serializer = LeagueSerializer(eligible_leagues, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_leagues(request, user_id):
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Get leagues the user owns or has joined
+    owned_leagues = user.owned_leagues.all()
+    joined_leagues = user.joined_leagues.all()
+
+    # Combine and serialize the leagues
+    leagues = owned_leagues | joined_leagues
+    serializer = LeagueSerializer(leagues, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def handle_invite_response(request, league_id, user_response):
+    print(f"DEBUG: Received request - league_id={league_id}, user_response={user_response}, user={request.user}")
+
+    try:
+        league = League.objects.get(id=league_id)
+    except League.DoesNotExist:
+        print(f"DEBUG: League with id {league_id} does not exist.")
+        return Response({"error": "League not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if user_response not in ["accept", "decline"]:
+        print(f"DEBUG: Invalid user response - {user_response}")
+        return Response({"error": "Invalid response."}, status=status.HTTP_400_BAD_REQUEST)
+
+    invite = Invite.objects.filter(league=league, invited_user=request.user).first()
+    if not invite:
+        print(f"DEBUG: No invite found for user {request.user} in league {league_id}")
+        return Response({"error": "No invite found for this league."}, status=status.HTTP_404_NOT_FOUND)
+
+    if user_response == "accept":
+        if request.user in league.users.all():
+            print(f"DEBUG: User {request.user} is already a member of the league.")
+            return Response({"error": "You are already a member of this league."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if league.users.count() >= league.max_capacity:
+            print(f"DEBUG: League {league_id} is full.")
+            return Response({"error": "This league is full."}, status=status.HTTP_400_BAD_REQUEST)
+
+        league.users.add(request.user)
+        invite.delete()
+        print(f"DEBUG: User {request.user} successfully joined league {league_id}.")
+        return Response({"success": f"You have successfully joined the league '{league.name}'."}, status=status.HTTP_200_OK)
+
+    invite.delete()
+    print(f"DEBUG: User {request.user} declined the invite for league {league_id}.")
+    return Response({"success": "You have declined the league invitation."}, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def invite_user_to_league(request, league_id, user_id):
+    try:
+        league = League.objects.get(id=league_id)
+    except League.DoesNotExist:
+        return Response({"error": "League not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.user != league.owner:
+        return Response({"error": "Only the league owner can invite users."}, status=status.HTTP_403_FORBIDDEN)
+
+    if league.draftStarted:
+        return Response({"error": "Cannot invite users after the draft has started."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Check if an invite already exists
+    if Invite.objects.filter(league=league, invited_user=user).exists():
+        return Response({"error": "This user has already been invited to this league."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Create an invite record
+    Invite.objects.create(league=league, invited_user=user, invited_by=request.user)
+
+    # Create a notification for the invited user
+    Notification.objects.create(
+        user=user,
+        message=f"You have been invited to join the league '{league.name}'.",
+        link=f"/api/leagues/{league_id}/invite-response/"  # Add a valid link
+    )
+
+    return Response({"success": f"User {user.username} has been invited to the league."}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def search_users(request):
+    query = request.query_params.get("username", "").strip()
+    if not query:
+        return Response({"error": "Username query is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    users = User.objects.filter(username__icontains=query).exclude(id=request.user.id)  # Exclude the logged-in user
+    serializer = UserSerializer(users, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
@@ -36,29 +155,17 @@ def mark_notification_as_unread(request, notification_id):
 
 def notify_draft_start(league):
     """Notify all users in the league that the draft has started."""
-    channel_layer = get_channel_layer()
     for user in league.users.all():
-        # Create a notification in the database
-        notification = Notification.objects.create(
-            user=user,
-            message=f"The draft for {league.name} has started!",
-            link=f"/draft/{league.id}/"
-        )
-
-        # Send the notification via WebSocket
-        async_to_sync(channel_layer.group_send)(
-            f"notifications_{user.id}",
-            {
-                "type": "send_notification",
-                "message": {
-                    "id": notification.id,
-                    "message": notification.message,
-                    "link": notification.link,
-                    "is_read": notification.is_read,
-                    "created_at": str(notification.created_at),
-                },
-            },
-        )
+        try:
+            # Create a notification in the database
+            Notification.objects.create(
+                user=user,
+                message=f"The draft for {league.name} has started!",
+                link=f"/draft/{league.id}/"
+            )
+            print(f"Notification created for user {user.username}: The draft for {league.name} has started!")  # Debugging log
+        except Exception as e:
+            logger.error(f"Failed to create notification for user {user.username}: {e}")
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])

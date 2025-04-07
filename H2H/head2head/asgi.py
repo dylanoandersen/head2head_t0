@@ -12,7 +12,7 @@ from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
 from django.core.asgi import get_asgi_application
 from User import routing
-from decouple import config
+#from decouple import config
 
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'head2head.settings')

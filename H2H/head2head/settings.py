@@ -64,6 +64,8 @@ INSTALLED_APPS = [
     'all_players',
     'User',
     'channels',
+    'django_extensions',
+
 ]
 
 ASGI_APPLICATION = 'head2head.asgi.application'

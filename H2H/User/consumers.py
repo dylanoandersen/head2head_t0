@@ -1,69 +1,44 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from asgiref.sync import sync_to_async
-from django.contrib.auth.models import User
 
+# Import models inside functions or methods to avoid early access
+def get_user_model():
+    from django.contrib.auth.models import User
+    return User
 
-class NotificationConsumer(AsyncWebsocketConsumer):
+class DraftConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        if self.scope["user"].is_authenticated:
-            self.user = self.scope["user"]
-            self.group_name = f"notifications_{self.user.id}"
+        self.user = self.scope["user"]
+        if self.user.is_authenticated:
+            self.league_id = self.scope['url_route']['kwargs']['league_id']
+            self.group_name = f"draft_{self.league_id}"
+            print(f"WebSocket connected for user: {self.user.username}, group: {self.group_name}")  # Debugging
 
-            # Join the WebSocket group for this user
+            # Join the WebSocket group
             await self.channel_layer.group_add(
                 self.group_name,
                 self.channel_name
             )
             await self.accept()
         else:
-            await self.close()
+            print("WebSocket connection denied: User not authenticated")  # Debugging
+            await self.close(code=403)
 
     async def disconnect(self, close_code):
-        # Leave the WebSocket group
         if hasattr(self, "group_name"):
+            print(f"WebSocket disconnected for user: {self.user.username}, group: {self.group_name}")  # Debugging
             await self.channel_layer.group_discard(
                 self.group_name,
                 self.channel_name
             )
-
     async def receive(self, text_data):
-        # Handle incoming messages if needed
+        # Handle incoming messages
         pass
 
-    async def send_notification(self, event):
-        # Send the notification to the WebSocket client
+    async def send_draft_update(self, event):
+        # Send the draft update to the WebSocket client
         await self.send(text_data=json.dumps(event["message"]))
-
-
-
-
-class DraftConsumer(AsyncWebsocketConsumer):
-    async def connect(self):
-        self.league_id = self.scope['url_route']['kwargs']['league_id']
-        self.group_name = f'draft_{self.league_id}'
-
-        # Join the WebSocket group
-        await self.channel_layer.group_add(
-            self.group_name,
-            self.channel_name
-        )
-        await self.accept()
-
-    async def disconnect(self, close_code):
-        # Leave the WebSocket group
-        await self.channel_layer.group_discard(
-            self.group_name,
-            self.channel_name
-        )
-
-    async def receive(self, text_data):
-        data = json.loads(text_data)
-        message_type = data.get('message', {}).get('type')
-
-        if message_type == 'make_pick':
-            print("Received make_pick message:", data)  # Debugging log
-            await self.handle_pick(data['message'])
 
     async def handle_pick(self, message):
         # Import models inside the method to avoid "Apps aren't loaded yet" error

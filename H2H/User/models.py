@@ -6,6 +6,10 @@ import uuid
 
 # Create your models here.
 
+
+
+
+
 class Notification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
     message = models.TextField()
@@ -51,6 +55,18 @@ class League(models.Model):
 
     def __str__(self):
         return f"{self.name} - {'Private' if self.private else 'Public'}"
+
+class Invite(models.Model):
+    league = models.ForeignKey('User.League', on_delete=models.CASCADE, related_name="invites")
+    invited_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_invites", db_column='invited_user_id')
+    invited_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name="sent_invites", db_column='invited_by_id')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('league', 'invited_user')
+
+    def __str__(self):
+        return f"Invite to {self.league.name} for {self.invited_user.username} by {self.invited_by.username}"
 
 
 class Team(models.Model):
