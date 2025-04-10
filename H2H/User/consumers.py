@@ -9,33 +9,43 @@ from .models import League, Matchup
 from all_players.models import Player
 from django.contrib.auth.models import User
 
+# Import models inside functions or methods to avoid early access
+def get_user_model():
+    from django.contrib.auth.models import User
+    return User
 
 class DraftConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.league_id = self.scope['url_route']['kwargs']['league_id']
-        self.group_name = f'draft_{self.league_id}'
+        self.user = self.scope["user"]
+        if self.user.is_authenticated:
+            self.league_id = self.scope['url_route']['kwargs']['league_id']
+            self.group_name = f"draft_{self.league_id}"
+            print(f"WebSocket connected for user: {self.user.username}, group: {self.group_name}")  # Debugging
 
-        # Join the WebSocket group
-        await self.channel_layer.group_add(
-            self.group_name,
-            self.channel_name
-        )
-        await self.accept()
+            # Join the WebSocket group
+            await self.channel_layer.group_add(
+                self.group_name,
+                self.channel_name
+            )
+            await self.accept()
+        else:
+            print("WebSocket connection denied: User not authenticated")  # Debugging
+            await self.close(code=403)
 
     async def disconnect(self, close_code):
-        # Leave the WebSocket group
-        await self.channel_layer.group_discard(
-            self.group_name,
-            self.channel_name
-        )
-
+        if hasattr(self, "group_name"):
+            print(f"WebSocket disconnected for user: {self.user.username}, group: {self.group_name}")  # Debugging
+            await self.channel_layer.group_discard(
+                self.group_name,
+                self.channel_name
+            )
     async def receive(self, text_data):
-        data = json.loads(text_data)
-        message_type = data.get('message', {}).get('type')
+        # Handle incoming messages
+        pass
 
-        if message_type == 'make_pick':
-            print("Received make_pick message:", data)  # Debugging log
-            await self.handle_pick(data['message'])
+    async def send_draft_update(self, event):
+        # Send the draft update to the WebSocket client
+        await self.send(text_data=json.dumps(event["message"]))
 
     async def handle_pick(self, message):
         # Import models inside the method to avoid "Apps aren't loaded yet" error

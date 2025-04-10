@@ -1,7 +1,14 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Profile, League, Team, Matchup
+from .models import Profile, League, Team, Matchup, Notification
 from all_players.models import Player
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ['id', 'message', 'link', 'is_read', 'created_at']
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:

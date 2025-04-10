@@ -106,29 +106,41 @@ def topTenPlayers(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def search_player(request):
-    search_query = request.GET.get("name", "").strip()  # Get search term
-    page = int(request.GET.get("page", 1))  # Get current page
-    players_per_page = 10 # Players per page
+    search_query = request.GET.get("name", "").strip()  # Search by name
+    team_query = request.GET.get("team", "").strip()  # Filter by team
+    position_query = request.GET.get("position", "").strip()  # Filter by position
+    status_query = request.GET.get("status", "").strip()  # Filter by status
+    yearly_proj_min = request.GET.get("yearly_proj_min", None)  # Min yearly projection
+    yearly_proj_max = request.GET.get("yearly_proj_max", None)  # Max yearly projection
+    page = int(request.GET.get("page", 1))  # Pagination
+    players_per_page = 10  # Players per page
 
+    players = Player.objects.all()
+
+    # Apply filters
     if search_query:
-        # Split search query into words
         name_parts = search_query.split()
-        
         if len(name_parts) == 2:
-            # If two words (assume first and last name)
             first_name, last_name = name_parts
-            players = Player.objects.filter(
+            players = players.filter(
                 Q(firstName__icontains=first_name) & Q(lastName__icontains=last_name)
             )
         else:
-            # If single word, search both first and last name fields
-            players = Player.objects.filter(
+            players = players.filter(
                 Q(firstName__icontains=search_query) | Q(lastName__icontains=search_query)
             )
-    else:
-        # If no search term, return all players paginated
-        players = Player.objects.all()
+    if team_query:
+        players = players.filter(team__icontains=team_query)
+    if position_query:
+        players = players.filter(position__icontains=position_query)
+    if status_query:
+        players = players.filter(status__icontains=status_query)
+    if yearly_proj_min:
+        players = players.filter(yearly_proj__gte=float(yearly_proj_min))
+    if yearly_proj_max:
+        players = players.filter(yearly_proj__lte=float(yearly_proj_max))
 
+    # Paginate results
     paginator = Paginator(players, players_per_page)
     paginated_players = paginator.get_page(page)
 

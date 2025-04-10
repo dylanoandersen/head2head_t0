@@ -64,9 +64,11 @@ INSTALLED_APPS = [
     'all_players',
     'User',
     'channels',
+    'django_extensions',
+
 ]
 
-ASGI_APPLICATION = 'H2H.asgi.application'
+ASGI_APPLICATION = 'head2head.asgi.application'
 
 CHANNEL_LAYERS = {
     "default": {

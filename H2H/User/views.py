@@ -2,8 +2,10 @@ from django.contrib.auth import authenticate
 from django.forms.models import model_to_dict
 from django.shortcuts import render
 from datetime import datetime;
-from .models import Profile, League, Team, Draft, Matchup
-from all_players.models import Player, Player_Stats# Import the Player model from the all_players app
+
+from all_players.models import Player, Player_Stats
+from .models import Profile, League, Team, Draft, Notification, Invite, Matchup
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
 
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -16,10 +18,235 @@ from rest_framework.response import Response
 from rest_framework import status, generics, permissions
 import logging
 
-from .serializers import UserSerializer, ProfileSerializer, LeagueSerializer, TeamSerializer, PlayerSerializer, MatchupSerializer, CustomTeamSerializer
+from .serializers import UserSerializer, ProfileSerializer, LeagueSerializer, TeamSerializer, PlayerSerializer, MatchupSerializer, CustomTeamSerializer, NotificationSerializer
 import random
+from django.core.paginator import Paginator
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
 logger = logging.getLogger(__name__)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_eligible_leagues(request, user_id):
+    try:
+        searched_user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Fetch leagues owned by the logged-in user
+    owned_leagues = request.user.owned_leagues.filter(draftStarted=False)
+
+    # Exclude leagues where the searched user is already a member
+    eligible_leagues = owned_leagues.exclude(users=searched_user)
+
+    serializer = LeagueSerializer(eligible_leagues, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_leagues(request, user_id):
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Get leagues the user owns or has joined
+    owned_leagues = user.owned_leagues.all()
+    joined_leagues = user.joined_leagues.all()
+
+    # Combine and serialize the leagues
+    leagues = owned_leagues | joined_leagues
+    serializer = LeagueSerializer(leagues, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def handle_invite_response(request, league_id, user_response):
+    print(f"DEBUG: Received request - league_id={league_id}, user_response={user_response}, user={request.user}")
+
+    try:
+        league = League.objects.get(id=league_id)
+    except League.DoesNotExist:
+        print(f"DEBUG: League with id {league_id} does not exist.")
+        return Response({"error": "League not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if user_response not in ["accept", "decline"]:
+        print(f"DEBUG: Invalid user response - {user_response}")
+        return Response({"error": "Invalid response."}, status=status.HTTP_400_BAD_REQUEST)
+
+    invite = Invite.objects.filter(league=league, invited_user=request.user).first()
+    if not invite:
+        print(f"DEBUG: No invite found for user {request.user} in league {league_id}")
+        return Response({"error": "No invite found for this league."}, status=status.HTTP_404_NOT_FOUND)
+
+    if user_response == "accept":
+        if request.user in league.users.all():
+            print(f"DEBUG: User {request.user} is already a member of the league.")
+            return Response({"error": "You are already a member of this league."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if league.users.count() >= league.max_capacity:
+            print(f"DEBUG: League {league_id} is full.")
+            return Response({"error": "This league is full."}, status=status.HTTP_400_BAD_REQUEST)
+
+        league.users.add(request.user)
+        invite.delete()
+        print(f"DEBUG: User {request.user} successfully joined league {league_id}.")
+        return Response({"success": f"You have successfully joined the league '{league.name}'."}, status=status.HTTP_200_OK)
+
+    invite.delete()
+    print(f"DEBUG: User {request.user} declined the invite for league {league_id}.")
+    return Response({"success": "You have declined the league invitation."}, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def invite_user_to_league(request, league_id, user_id):
+    try:
+        league = League.objects.get(id=league_id)
+    except League.DoesNotExist:
+        return Response({"error": "League not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.user != league.owner:
+        return Response({"error": "Only the league owner can invite users."}, status=status.HTTP_403_FORBIDDEN)
+
+    if league.draftStarted:
+        return Response({"error": "Cannot invite users after the draft has started."}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
+
+    # Check if an invite already exists
+    if Invite.objects.filter(league=league, invited_user=user).exists():
+        return Response({"error": "This user has already been invited to this league."}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Create an invite record
+    Invite.objects.create(league=league, invited_user=user, invited_by=request.user)
+
+    # Create a notification for the invited user
+    Notification.objects.create(
+        user=user,
+        message=f"You have been invited to join the league '{league.name}'.",
+        link=f"/api/leagues/{league_id}/invite-response/"  # Add a valid link
+    )
+
+    return Response({"success": f"User {user.username} has been invited to the league."}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def search_users(request):
+    query = request.query_params.get("username", "").strip()
+    if not query:
+        return Response({"error": "Username query is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+    users = User.objects.filter(username__icontains=query).exclude(id=request.user.id)  # Exclude the logged-in user
+    serializer = UserSerializer(users, many=True)
+    return Response(serializer.data, status=status.HTTP_200_OK)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_notification_as_unread(request, notification_id):
+    try:
+        notification = Notification.objects.get(id=notification_id, user=request.user)
+        notification.is_read = False
+        notification.save()
+        return Response({'success': 'Notification marked as unread.'}, status=status.HTTP_200_OK)
+    except Notification.DoesNotExist:
+        return Response({'error': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+def notify_draft_start(league):
+    """Notify all users in the league that the draft has started."""
+    for user in league.users.all():
+        try:
+            # Create a notification in the database
+            Notification.objects.create(
+                user=user,
+                message=f"The draft for {league.name} has started!",
+                link=f"/draft/{league.id}/"
+            )
+            print(f"Notification created for user {user.username}: The draft for {league.name} has started!")  # Debugging log
+        except Exception as e:
+            logger.error(f"Failed to create notification for user {user.username}: {e}")
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_notifications(request):
+    limit = request.query_params.get('limit', None)  # Optional query parameter
+    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
+    if limit:
+        notifications = notifications[:int(limit)]
+    serializer = NotificationSerializer(notifications, many=True)
+    return Response(serializer.data)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_notification_as_read(request, notification_id):
+    try:
+        notification = Notification.objects.get(id=notification_id, user=request.user)
+        notification.is_read = True
+        notification.save()
+        return Response({'success': 'Notification marked as read.'}, status=status.HTTP_200_OK)
+    except Notification.DoesNotExist:
+        return Response({'error': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_notification(request, notification_id):
+    try:
+        notification = Notification.objects.get(id=notification_id, user=request.user)
+        notification.delete()
+        return Response({'success': 'Notification deleted.'}, status=status.HTTP_200_OK)
+    except Notification.DoesNotExist:
+        return Response({'error': 'Notification not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def leave_league(request, league_id):
+    try:
+        league = League.objects.get(id=league_id)
+    except League.DoesNotExist:
+        return Response({"error": "League not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if league.draftStarted:
+        return Response({"error": "Cannot leave a league after the draft has started."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.user == league.owner:
+        return Response({"error": "Owners cannot leave their own league. They must delete it instead."}, status=status.HTTP_400_BAD_REQUEST)
+
+    if request.user not in league.users.all():
+        return Response({"error": "You are not a member of this league."}, status=status.HTTP_403_FORBIDDEN)
+
+    league.users.remove(request.user)
+    return Response({"message": "Successfully left the league."}, status=status.HTTP_200_OK)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_league(request, league_id):
+    logger.info(f"Received request to delete league with ID: {league_id} by user: {request.user.username}")
+
+    try:
+        league = League.objects.get(id=league_id)
+    except League.DoesNotExist:
+        logger.error(f"League with ID {league_id} not found.")
+        return Response({"error": "League not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.user != league.owner:
+        logger.error(f"User {request.user.username} is not the owner of league {league_id}.")
+        return Response({"error": "Only the owner can delete this league."}, status=status.HTTP_403_FORBIDDEN)
+
+    if league.draftStarted:
+        logger.error(f"Cannot delete league {league_id} because the draft has started.")
+        return Response({"error": "Cannot delete a league after the draft has started."}, status=status.HTTP_400_BAD_REQUEST)
+
+    league.delete()
+    logger.info(f"League with ID {league_id} successfully deleted.")
+    return Response({"message": "League successfully deleted."}, status=status.HTTP_200_OK)
 
 
 @api_view(['PUT'])
@@ -132,6 +359,10 @@ def start_draft(request, league_id):
 
     league.draftStarted = True
     league.save()
+
+
+    # Notify all users about the draft start
+    notify_draft_start(league)
 
     # Assign the draft URL
     draft_url = f"/draft/{league_id}/"
@@ -512,34 +743,94 @@ def join_public_league(request, league_id):
 
 
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
 def search_league(request):
-    if request.method == "GET":
-        name_query = request.GET.get("name", "").strip()
-        print(f"Search Term: {name_query}")  # Log the search term
+    name_query = request.GET.get("name", "").strip()  # Search by name
+    is_private = request.GET.get("private", None)  # Filter by private/public
+    positional_betting = request.GET.get("positional_betting", None)  # Filter by positional betting
+    draft_status = request.GET.get("draft_status", None)  # Filter by draft status
+    draft_date = request.GET.get("draft_date", None)  # Filter by draft date (before/after)
+    page = int(request.GET.get("page", 1))  # Pagination
+    leagues_per_page = 10  # Leagues per page
 
-        if not name_query:
-            return JsonResponse({"error": "No name provided"}, status=400)
+    leagues = League.objects.all()
 
-        # Ensure filtering works correctly
-        leagues = League.objects.filter(name__icontains=name_query)
-        print(f"Leagues Found: {list(leagues.values('id', 'name'))}")  # Log the filtered leagues
+    # Debugging: Print initial query
+    print(f"Initial leagues query: {leagues}")
 
-        if not leagues.exists():
-            return JsonResponse({"results": []})
+    # Apply filters
+    if name_query:
+        leagues = leagues.filter(name__icontains=name_query)
+        print(f"Filtered by name: {name_query}")
 
-        league_data = [
-            {
-                "id": league.id,
-                "name": league.name,
-                "owner": league.owner.username,
-                "draft_date": league.draft_date,
-            }
-            for league in leagues
-        ]
+    if is_private is not None and is_private != "":
+        if is_private == "1":
+            leagues = leagues.filter(private=True)
+        elif is_private == "0":
+            leagues = leagues.filter(private=False)
+        print(f"Filtered by private: {is_private}")
+    else:
+        print("No filtering applied for private/public.")
 
-        return JsonResponse({"results": league_data})
+    if positional_betting is not None and positional_betting != "":
+        if positional_betting == "1":
+            leagues = leagues.filter(positional_betting=True)
+        elif positional_betting == "0":
+            leagues = leagues.filter(positional_betting=False)
+        print(f"Filtered by positional_betting: {positional_betting}")
+    else:
+        print("No filtering applied for positional_betting.")
 
-    return JsonResponse({"error": "Invalid request method"}, status=405)
+    if draft_status is not None and draft_status != "":
+        if draft_status == "0":  # Not Started
+            leagues = leagues.filter(draftStarted=False, draftComplete=False)
+        elif draft_status == "1":  # In Progress
+            leagues = leagues.filter(draftStarted=True, draftComplete=False)
+        elif draft_status == "2":  # Completed
+            leagues = leagues.filter(draftComplete=True)
+        print(f"Filtered by draft_status: {draft_status}")
+    else:
+        print("No filtering applied for draft_status.")
+
+    if draft_date:
+        try:
+            date_filter = datetime.strptime(draft_date, "%Y-%m-%d")
+            leagues = leagues.filter(draft_date__gte=date_filter)  # Filter leagues after the given date
+            print(f"Filtered by draft_date: {draft_date}")
+        except ValueError:
+            print(f"Invalid draft_date format: {draft_date}")
+            return JsonResponse({"error": "Invalid date format. Use YYYY-MM-DD."}, status=400)
+
+    # Debugging: Print final query
+    print(f"Final leagues query: {leagues}")
+
+    # Paginate results
+    paginator = Paginator(leagues, leagues_per_page)
+    try:
+        paginated_leagues = paginator.get_page(page)
+    except Exception as e:
+        print(f"Pagination error: {str(e)}")
+        return JsonResponse({"error": "Invalid page number."}, status=400)
+
+    league_data = [
+        {
+            "id": league.id,
+            "name": league.name,
+            "owner": league.owner.username,
+            "draft_date": league.draft_date,
+            "private": league.private,
+            "positional_betting": league.positional_betting,
+            "draftStarted": league.draftStarted,
+            "draftComplete": league.draftComplete,
+        }
+        for league in paginated_leagues
+    ]
+
+    return JsonResponse({
+        "results": league_data,
+        "totalPages": paginator.num_pages
+    })
 
 
 @api_view(['POST'])
