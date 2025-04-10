@@ -20,6 +20,7 @@ from django.conf.urls.static import static
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from User import views as user_views
+from User.views import  TradeView
 from all_players import views
 
 urlpatterns = [
@@ -58,5 +59,5 @@ urlpatterns = [
     path('api/leagues/myPlayers/', user_views.myPlayers),
     path('api/leagues/save-data/', user_views.saveUserTeam),
     path('api/leagues/check_join_code/<str:join_code>/', user_views.check_join_code, name='check-join-code'),
-
+    path('api/leagues/<int:league_id>/trade/', TradeView.as_view(), name='trade-view'),
 ]

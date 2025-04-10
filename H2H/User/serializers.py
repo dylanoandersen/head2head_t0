@@ -85,3 +85,4 @@ class TeamSerializer(serializers.ModelSerializer):
         model = Team
         fields = ['id', 'title', 'QB', 'RB1', 'RB2', 'WR1', 'WR2', 'TE', 'FLX', 'K', 'DEF', 
                   'BN1', 'BN2', 'BN3', 'BN4', 'BN5', 'BN6', 'IR1', 'IR2', 'author', 'league', 'rank']
+

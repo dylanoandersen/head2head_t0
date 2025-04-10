@@ -357,12 +357,12 @@ def userTeam(request, LID):
             user = User.objects.get(id=UID)
             team = Team.objects.get(league=league, author=user)
         except (League.DoesNotExist, User.DoesNotExist, Team.DoesNotExist):
-            return Response({"error": "Team not found"}, status=status.HTTP_404_NOT_FOUND)
+            return JsonResponse({"error": "Team not found"}, status=404)
     else:
-        return Response({"error": "Invalid request method"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+        return JsonResponse({"error": "Invalid request method"}, status=405)
 
     serializer = TeamSerializer(team)
-    return Response(serializer.data)
+    return JsonResponse(serializer.data)
 
 @api_view(['PUT'])
 @permission_classes([permissions.IsAuthenticated])
@@ -518,3 +518,26 @@ class TeamDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Team.objects.all()
     serializer_class = TeamSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+class TradeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, league_id):
+        # Fetch the league
+        league = League.objects.get(id=league_id)
+
+        # Get the user's team in this league
+        user_team = Team.objects.filter(league=league, author=request.user).first()
+
+        # Get all other teams in the league except for the user's team
+        other_teams = Team.objects.filter(league=league).exclude(author=request.user)
+
+        # Serialize both the user's team and the other teams
+        user_team_serializer = TeamSerializer(user_team)
+        other_teams_serializer = TeamSerializer(other_teams, many=True)
+
+        # Return the serialized data
+        return Response({
+            'user_team': user_team_serializer.data,
+            'other_teams': other_teams_serializer.data
+        })

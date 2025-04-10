@@ -44,7 +44,7 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=30),
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=120),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1)
 }
 
@@ -66,7 +66,8 @@ INSTALLED_APPS = [
     'channels',
 ]
 
-ASGI_APPLICATION = 'H2H.asgi.application'
+ASGI_APPLICATION = 'head2head.asgi.application'
+
 
 CHANNEL_LAYERS = {
     "default": {
