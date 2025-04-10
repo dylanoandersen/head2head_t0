@@ -1,14 +1,9 @@
 from django.contrib.auth import authenticate
 from django.shortcuts import render
 from datetime import datetime;
-<<<<<<< HEAD
 from .models import Profile, League, Team, Draft, Notification, Invite
 from all_players.models import Player  # Import the Player model from the all_players app
 from rest_framework.permissions import IsAuthenticated, AllowAny
-=======
-from .models import Profile, League, Team, Draft
-from all_players.models import Player, Player_Stats# Import the Player model from the all_players app
->>>>>>> e4d1f74cfe03888c5c19ba65f135659577c142c9
 from django.contrib.auth.models import User
 
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -20,12 +15,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework import status, generics, permissions
 import logging
-<<<<<<< HEAD
 from .serializers import UserSerializer, ProfileSerializer, LeagueSerializer, TeamSerializer, NotificationSerializer
-=======
-
-from .serializers import UserSerializer, ProfileSerializer, LeagueSerializer, TeamSerializer, PlayerSerializer
->>>>>>> e4d1f74cfe03888c5c19ba65f135659577c142c9
 import random
 from django.core.paginator import Paginator
 from asgiref.sync import async_to_sync

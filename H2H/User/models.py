@@ -53,7 +53,6 @@ class League(models.Model):
     def __str__(self):
         return f"{self.name} - {'Private' if self.private else 'Public'}"
 
-<<<<<<< HEAD
 class Invite(models.Model):
     league = models.ForeignKey('User.League', on_delete=models.CASCADE, related_name="invites")
     invited_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_invites", db_column='invited_user_id')
@@ -67,8 +66,6 @@ class Invite(models.Model):
         return f"Invite to {self.league.name} for {self.invited_user.username} by {self.invited_by.username}"
 
 
-=======
->>>>>>> e4d1f74cfe03888c5c19ba65f135659577c142c9
 class Team(models.Model):
     title = models.CharField(max_length=100, default='N/A', blank=True)
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="ReDraft", default=-1)
