@@ -18,7 +18,6 @@ from django.contrib import admin
 from django.conf import settings
 from django.conf.urls.static import static
 from django.urls import path, include
-from all_players.scheduler import start_scheduler
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from User import views as user_views
 from all_players import views
@@ -60,6 +59,9 @@ urlpatterns = [
     path('api/leagues/join/public/<int:league_id>/', user_views.join_public_league, name='join-public-league'),
     path('api/leagues/join/private/', user_views.join_private_league, name='join-private-league'),
     path('api/leagues/myleagues/', user_views.my_leagues, name='my-leagues'),
+    path('api/leagues/<int:LID>/user/', user_views.userTeam),
+    path('api/leagues/myPlayers/', user_views.myPlayers),
+    path('api/leagues/save-data/', user_views.saveUserTeam),
     path('api/leagues/check_join_code/<str:join_code>/', user_views.check_join_code, name='check-join-code'),
     path('api/notifications/', user_views.get_notifications, name='get_notifications'),
     path('api/notifications/<int:notification_id>/read/', user_views.mark_notification_as_read, name='mark_notification_as_read'),
@@ -67,6 +69,3 @@ urlpatterns = [
     path('api/notifications/<int:notification_id>/unread/', user_views.mark_notification_as_unread, name='mark_notification_as_unread'),
 
 ]
-
-start_scheduler()
-

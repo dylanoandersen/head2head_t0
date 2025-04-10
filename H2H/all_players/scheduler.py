@@ -9,29 +9,28 @@ scheduler = BackgroundScheduler()
 
 def start_scheduler():
     """Starts the scheduler, ensuring no duplicate jobs run."""
-    if os.environ.get("RUN_MAIN") == "true":  # Prevent double execution in Django
-        print("🔄 Starting Scheduler...")
+    print("🔄 Starting Scheduler...")
 
-        # Run daily task once when server starts
-        daily_task_wrapper()
+    # Run daily task once when server starts
+    daily_task_wrapper()
 
-        # Add Live Update Job (once every 24 hours)
-        if not scheduler.get_job("live_update"):
-            scheduler.add_job(
-                live_update_wrapper,  # Wrapper function to handle the live update
-                trigger=IntervalTrigger(hours=24),
-                id="live_update",
-                replace_existing=True,
-            )
-            print("✅ Scheduled: live_update (every 24 hours)")
+    # Add Live Update Job (once every 24 hours)
+    if not scheduler.get_job("live_update"):
+        scheduler.add_job(
+            live_update_wrapper,  # Wrapper function to handle the live update
+            trigger=IntervalTrigger(hours=24),
+            id="live_update",
+            replace_existing=True,
+        )
+        print("✅ Scheduled: live_update (every 24 hours)")
 
-        # Start the scheduler
-        scheduler.start()
-        print("✅ Scheduler started successfully!")
+    # Start the scheduler
+    scheduler.start()
+    print("✅ Scheduler started successfully!")
 
-        # Debugging: Print all scheduled jobs
-        for job in scheduler.get_jobs():
-            print(f"📌 Job ID: {job.id}, Next run: {job.next_run_time}")
+    # Debugging: Print all scheduled jobs
+    for job in scheduler.get_jobs():
+        print(f"📌 Job ID: {job.id}, Next run: {job.next_run_time}")
 
 def daily_task_wrapper():
     """Runs the daily task, ensures no double execution."""

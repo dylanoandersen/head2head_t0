@@ -28,8 +28,6 @@ class Profile(models.Model):
 
     def __str__(self):
         return self.user.username
-    
-
 
 class League(models.Model):
     name = models.CharField(max_length=255, unique=True)
@@ -44,7 +42,6 @@ class League(models.Model):
     draftStarted = models.BooleanField(default=False)  # Add this line
     draftComplete = models.BooleanField(default=False)  # New field
 
-
     def save(self, *args, **kwargs):
         if self.private and not self.join_code:
             self.join_code = str(uuid.uuid4())[:10]  # Generate a random 10-character code for private leagues
@@ -56,6 +53,7 @@ class League(models.Model):
     def __str__(self):
         return f"{self.name} - {'Private' if self.private else 'Public'}"
 
+<<<<<<< HEAD
 class Invite(models.Model):
     league = models.ForeignKey('User.League', on_delete=models.CASCADE, related_name="invites")
     invited_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="received_invites", db_column='invited_user_id')
@@ -69,8 +67,10 @@ class Invite(models.Model):
         return f"Invite to {self.league.name} for {self.invited_user.username} by {self.invited_by.username}"
 
 
+=======
+>>>>>>> e4d1f74cfe03888c5c19ba65f135659577c142c9
 class Team(models.Model):
-    title = models.CharField(max_length=100, default='N/A')
+    title = models.CharField(max_length=100, default='N/A', blank=True)
     author = models.ForeignKey(User, on_delete=models.CASCADE, related_name="ReDraft", default=-1)
     league = models.ForeignKey(League, on_delete=models.CASCADE, related_name="teams", default=-1)
     rank = models.IntegerField(default=0)
@@ -92,11 +92,8 @@ class Team(models.Model):
     IR1 = models.CharField(max_length=20,default='N/A')
     IR2 = models.CharField(max_length=20,default='N/A')
 
-
-
     def __str__(self):
         return f"{self.title} {self.author}"
-
 
 class Draft(models.Model):
     league = models.OneToOneField(League, on_delete=models.CASCADE)
@@ -115,3 +112,17 @@ class Draft(models.Model):
             index_in_round = total_users - 1 - index_in_round
 
         return self.draft_order[index_in_round]
+
+class Matchup(models.Model):
+    league = models.ForeignKey(League, on_delete=models.CASCADE)
+    week = models.IntegerField(default=0)
+    
+    team1 = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='matchups_as_team1'
+    )
+    team2 = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='matchups_as_team2'
+    )
+    
+    team1score = models.DecimalField(max_digits=5, decimal_places=2)
+    team2score = models.DecimalField(max_digits=5, decimal_places=2)
