@@ -61,6 +61,8 @@ urlpatterns = [
     path('api/leagues/myleagues/', user_views.my_leagues, name='my-leagues'),
     path('api/leagues/<int:LID>/user/', user_views.userTeam),
     path('api/leagues/myPlayers/', user_views.myPlayers),
+    path('api/leagues/members/', user_views.leagueMatchups),
+    path('api/leagues/allTeams/', user_views.allTeams),
     path('api/leagues/save-data/', user_views.saveUserTeam),
     path('api/leagues/check_join_code/<str:join_code>/', user_views.check_join_code, name='check-join-code'),
     path('api/notifications/', user_views.get_notifications, name='get_notifications'),
