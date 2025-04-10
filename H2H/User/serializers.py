@@ -1,6 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Profile, League, Team
+from .models import Profile, League, Team, Matchup
 from all_players.models import Player
 
 class UserSerializer(serializers.ModelSerializer):
@@ -40,7 +40,7 @@ class PlayerSerializer(serializers.ModelSerializer):
                   'pass_yards', 'pass_tds', 'receiving_yards', 'receiving_tds', 'rush_yards', 'rush_tds', 'fg_made', 'extra_points_made']
 
     def get_proj_fantasy(self, obj):
-        return getattr(obj, 'proj_fantasy', None)  # Get dynamically attached field
+        return getattr(obj, 'proj_fantasy', None)
     def get_total_fantasy_points(self, obj):
         return getattr(obj, 'total_fantasy_points', None)  # Get dynamically attached field
     def get_pass_yards(self, obj):
@@ -85,3 +85,40 @@ class TeamSerializer(serializers.ModelSerializer):
         model = Team
         fields = ['id', 'title', 'QB', 'RB1', 'RB2', 'WR1', 'WR2', 'TE', 'FLX', 'K', 'DEF', 
                   'BN1', 'BN2', 'BN3', 'BN4', 'BN5', 'BN6', 'IR1', 'IR2', 'author', 'league', 'rank']
+
+class MatchupSerializer(serializers.ModelSerializer):
+    team1 = UserSerializer(read_only=True)
+    team2 = UserSerializer(read_only=True)
+
+    class Meta:
+        model = Matchup
+        fields = ['id','team1','team2','team1score', 'team2score']
+
+class PlayerSlotSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    fullName = serializers.CharField()
+    proj_fantasy = serializers.DecimalField(max_digits=5, decimal_places=2, required=False)
+    total_fantasy_points = serializers.DecimalField(max_digits=5, decimal_places=2, required=False)
+
+class CustomTeamSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    title = serializers.CharField()
+    rank = serializers.IntegerField()
+    author = serializers.CharField()
+    QB = PlayerSlotSerializer(allow_null=True)
+    RB1 = PlayerSlotSerializer(allow_null=True)
+    RB2 = PlayerSlotSerializer(allow_null=True)
+    WR1 = PlayerSlotSerializer(allow_null=True)
+    WR2 = PlayerSlotSerializer(allow_null=True)
+    TE = PlayerSlotSerializer(allow_null=True)
+    FLX = PlayerSlotSerializer(allow_null=True)
+    K = PlayerSlotSerializer(allow_null=True)
+    DEF = PlayerSlotSerializer(allow_null=True)
+    BN1 = PlayerSlotSerializer(allow_null=True)
+    BN2 = PlayerSlotSerializer(allow_null=True)
+    BN3 = PlayerSlotSerializer(allow_null=True)
+    BN4 = PlayerSlotSerializer(allow_null=True)
+    BN5 = PlayerSlotSerializer(allow_null=True)
+    BN6 = PlayerSlotSerializer(allow_null=True)
+    IR1 = PlayerSlotSerializer(allow_null=True)
+    IR2 = PlayerSlotSerializer(allow_null=True)

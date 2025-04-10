@@ -1,7 +1,8 @@
 from django.contrib.auth import authenticate
+from django.forms.models import model_to_dict
 from django.shortcuts import render
 from datetime import datetime;
-from .models import Profile, League, Team, Draft
+from .models import Profile, League, Team, Draft, Matchup
 from all_players.models import Player, Player_Stats# Import the Player model from the all_players app
 from django.contrib.auth.models import User
 
@@ -15,7 +16,7 @@ from rest_framework.response import Response
 from rest_framework import status, generics, permissions
 import logging
 
-from .serializers import UserSerializer, ProfileSerializer, LeagueSerializer, TeamSerializer, PlayerSerializer
+from .serializers import UserSerializer, ProfileSerializer, LeagueSerializer, TeamSerializer, PlayerSerializer, MatchupSerializer, CustomTeamSerializer
 import random
 
 logger = logging.getLogger(__name__)
@@ -304,16 +305,16 @@ def myPlayers(request):
                 position="",
                 team="",
             )
-            setattr(currentP, 'proj_fantasy', None)  # Set default if no stats
-            setattr(currentP, 'total_fantasy_points', None)
-            setattr(currentP, 'pass_yards', None)
-            setattr(currentP, 'pass_tds', None)
-            setattr(currentP, 'receiving_yards', None)
-            setattr(currentP, 'receiving_tds', None)
-            setattr(currentP, 'rush_yards', None)
-            setattr(currentP, 'rush_tds', None)
-            setattr(currentP, 'fg_made', None)
-            setattr(currentP, 'extra_points_made', None)
+            setattr(empty_player, 'proj_fantasy', None)  # Set default if no stats
+            setattr(empty_player, 'total_fantasy_points', None)
+            setattr(empty_player, 'pass_yards', None)
+            setattr(empty_player, 'pass_tds', None)
+            setattr(empty_player, 'receiving_yards', None)
+            setattr(empty_player, 'receiving_tds', None)
+            setattr(empty_player, 'rush_yards', None)
+            setattr(empty_player, 'rush_tds', None)
+            setattr(empty_player, 'fg_made', None)
+            setattr(empty_player, 'extra_points_made', None)
 
             objectList.append(empty_player)
             continue
@@ -330,7 +331,9 @@ def myPlayers(request):
             setattr(currentP, 'rush_tds', latest.rush_tds)
             setattr(currentP, 'fg_made', latest.fg_made)
             setattr(currentP, 'extra_points_made', latest.extra_points_made)
+            #print(currentP, "stats found", model_to_dict(latest))
         except:
+            print(currentP, "no stats")
             setattr(currentP, 'proj_fantasy', None)  # Set default if no stats
             setattr(currentP, 'total_fantasy_points', None)
             setattr(currentP, 'pass_yards', None)
@@ -343,8 +346,8 @@ def myPlayers(request):
             setattr(currentP, 'extra_points_made', None)
 
         objectList.append(currentP)
-
     serializer = PlayerSerializer(objectList, many=True)
+    #print("data after serialization",serializer.data)
     return Response(serializer.data)
 
 @api_view(['GET'])
@@ -363,6 +366,77 @@ def userTeam(request, LID):
 
     serializer = TeamSerializer(team)
     return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def leagueMatchups(request):
+    members = request.GET.get("members")
+    member_ids = [int(x) for x in members.split(",")]
+    weekly = Matchup.objects.filter(week = 1)
+    matchups = []
+    for m in weekly:
+        if m.team1.id in member_ids and m.team2.id in member_ids:
+            print(m)
+            matchups.append(m)
+
+    serializer = MatchupSerializer(matchups, many = True)
+    return Response(serializer.data)
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def allTeams(request):
+    members = request.GET.get("members")
+    league = request.GET.get("leagueID")
+    member_ids = [int(x) for x in members.split(",")]
+    leagueid = int(league)
+
+    league = League.objects.get(id=leagueid)
+    teamLst = []
+    # List of position fields in Team
+    position_fields = [
+        'QB', 'RB1', 'RB2', 'WR1', 'WR2', 'TE', 'FLX', 'K', 'DEF',
+        'BN1', 'BN2', 'BN3', 'BN4', 'BN5', 'BN6', 'IR1', 'IR2'
+    ]
+    for user_id in member_ids:
+        if user_id == request.user.id:
+            continue
+        author = User.objects.get(id=user_id)
+        team = Team.objects.get(league=league, author=author)
+        team_data = {
+            'id': team.id,
+            'title': team.title,
+            'rank': team.rank,
+            'author': team.author.username,
+        }
+
+        for pos in position_fields:
+            player_id = getattr(team, pos)
+            if player_id and player_id != "N/A":
+                player = Player.objects.get(id = player_id)
+                fullName = player.firstName + " " + player.lastName
+                print("player: ",player)
+
+                try:
+                    stats = Player_Stats.objects.get(player=player, week = 1) # get most recent
+                    team_data[pos] = {
+                        'id': player_id,
+                        'fullName': fullName,
+                        'proj_fantasy': stats.proj_fantasy,
+                        'total_fantasy_points': stats.total_fantasy_points
+                    }
+                except:
+                    team_data[pos] = {
+                        'id': player_id,
+                        'fullName': fullName,
+                        'proj_fantasy': None,
+                        'total_fantasy_points': None
+                    }
+            else:
+                team_data[pos] = None
+        teamLst.append(team_data)
+    serializer = CustomTeamSerializer(teamLst, many=True)
+    return Response(serializer.data)
+
 
 @api_view(['PUT'])
 @permission_classes([permissions.IsAuthenticated])

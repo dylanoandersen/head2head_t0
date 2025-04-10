@@ -39,9 +39,10 @@ DATABASES = {\
 }\
 
 Set Up the Database:\
+
 python manage.py makemigrations\
 python manage.py migrate\
-python manage.py runserver\
+daphne -b 0.0.0.0 -p 8000 head2head.asgi:application\
 
 This loads all data from dbb.json into the tables. Please check tables in Workbench to make sure.\
 python manage.py loaddata dbb.json
@@ -50,6 +51,6 @@ python manage.py loaddata dbb.json
 python manage.py createsuperuser
 
 6. Run the Development Server:\
-python manage.py runserver
+daphne -b 0.0.0.0 -p 8000 head2head.asgi:application
 
 7. Ask Chat with errors, usually works
