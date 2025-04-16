@@ -64,7 +64,7 @@ INSTALLED_APPS = [
     'all_players',
     'User',
     'channels',
-    'django_extensions',
+ #   'django_extensions',
 
 ]
 

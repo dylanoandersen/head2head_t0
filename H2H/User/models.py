@@ -123,3 +123,6 @@ class Matchup(models.Model):
     
     team1score = models.DecimalField(max_digits=5, decimal_places=2)
     team2score = models.DecimalField(max_digits=5, decimal_places=2)
+
+class Week(models.Model):
+    week = models.IntegerField(default=0)
