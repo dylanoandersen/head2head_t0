@@ -598,6 +598,33 @@ def userTeam(request, LID):
     serializer = TeamSerializer(team)
     return Response(serializer.data)
 
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def TradeInfo(request, LID):
+    if request.method == 'GET':
+        try:
+            # Fetch the league by ID
+            league = League.objects.get(id=LID)
+
+            # Fetch all teams associated with the league
+            teams = Team.objects.filter(league=league)
+
+            # Check if there are teams in the league
+            if not teams.exists():
+                return Response({"error": "No teams found in this league."}, status=status.HTTP_404_NOT_FOUND)
+        except League.DoesNotExist:
+            return Response({"error": f"League with ID {LID} does not exist."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Serialize the teams and return their data
+        serializer = TeamSerializer(teams, many=True)
+        return Response({
+            "league": league.name,
+            "teams": serializer.data,
+        })
+    else:
+        return Response({"error": "Invalid request method"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def leagueMatchups(request):
