@@ -25,6 +25,7 @@ from all_players import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('allPlayers/', views.allPlayer),
+    path('api/topTenPlayers/', views.topTenPlayers, name='top_ten_players'),
     path('playerInfo/<int:id>', views.player_info),
     path('playerStats/<int:id>', views.player_stats),
     path('playerNews/<int:id>', views.player_news),
@@ -60,6 +61,7 @@ urlpatterns = [
     path('api/leagues/join/private/', user_views.join_private_league, name='join-private-league'),
     path('api/leagues/myleagues/', user_views.my_leagues, name='my-leagues'),
     path('api/leagues/<int:LID>/user/', user_views.userTeam),
+    path('api/leagues/<int:LID>/trade/', user_views.TradeInfo),
     path('api/leagues/myPlayers/', user_views.myPlayers),
     path('api/leagues/members/', user_views.leagueMatchups),
     path('api/leagues/allTeams/', user_views.allTeams),
