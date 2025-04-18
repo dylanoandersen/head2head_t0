@@ -524,10 +524,11 @@ def myPlayers(request):
     objectList = []
     player_parms = request.GET.get('players', None)
     player_list = player_parms.split(',') if player_parms else []
-    print(f"Player List: {player_list}")  # Log the player list
+    print(f"Player List: {player_list}")  # Debugging log
+
     for id in player_list:
-        if id == "N/A":
-        # Create a placeholder "empty" player object (not saved to the DB)
+        if id in [None, "null", "N/A", ""]:  # Skip invalid IDs
+            # Create a placeholder "empty" player object (not saved to the DB)
             empty_player = Player(
                 id=None,
                 firstName="Empty",
@@ -536,49 +537,65 @@ def myPlayers(request):
                 position="",
                 team="",
             )
-            setattr(empty_player, 'proj_fantasy', None)  # Set default if no stats
-            setattr(empty_player, 'total_fantasy_points', None)
-            setattr(empty_player, 'pass_yards', None)
-            setattr(empty_player, 'pass_tds', None)
-            setattr(empty_player, 'receiving_yards', None)
-            setattr(empty_player, 'receiving_tds', None)
-            setattr(empty_player, 'rush_yards', None)
-            setattr(empty_player, 'rush_tds', None)
-            setattr(empty_player, 'fg_made', None)
-            setattr(empty_player, 'extra_points_made', None)
-
+            setattr(empty_player, 'proj_fantasy', 0)
+            setattr(empty_player, 'total_fantasy_points', 0)
+            setattr(empty_player, 'pass_yards', 0)
+            setattr(empty_player, 'pass_tds', 0)
+            setattr(empty_player, 'receiving_yards', 0)
+            setattr(empty_player, 'receiving_tds', 0)
+            setattr(empty_player, 'rush_yards', 0)
+            setattr(empty_player, 'rush_tds', 0)
+            setattr(empty_player, 'fg_made', 0)
+            setattr(empty_player, 'extra_points_made', 0)
             objectList.append(empty_player)
             continue
-        currentP = Player.objects.get(id=id)
-        try:
-            latest = Player_Stats.objects.get(player=currentP, week=1)
-            setattr(currentP, 'proj_fantasy', latest.proj_fantasy)  # Attach to Player object
-            setattr(currentP, 'total_fantasy_points', latest.total_fantasy_points)  # Attach to Player object
-            setattr(currentP, 'pass_yards', latest.pass_yards)
-            setattr(currentP, 'pass_tds', latest.pass_tds)
-            setattr(currentP, 'receiving_yards', latest.receiving_yards)
-            setattr(currentP, 'receiving_tds', latest.receiving_tds)
-            setattr(currentP, 'rush_yards', latest.rush_yards)
-            setattr(currentP, 'rush_tds', latest.rush_tds)
-            setattr(currentP, 'fg_made', latest.fg_made)
-            setattr(currentP, 'extra_points_made', latest.extra_points_made)
-            #print(currentP, "stats found", model_to_dict(latest))
-        except:
-            print(currentP, "no stats")
-            setattr(currentP, 'proj_fantasy', None)  # Set default if no stats
-            setattr(currentP, 'total_fantasy_points', None)
-            setattr(currentP, 'pass_yards', None)
-            setattr(currentP, 'pass_tds', None)
-            setattr(currentP, 'receiving_yards', None)
-            setattr(currentP, 'receiving_tds', None)
-            setattr(currentP, 'rush_yards', None)
-            setattr(currentP, 'rush_tds', None)
-            setattr(currentP, 'fg_made', None)
-            setattr(currentP, 'extra_points_made', None)
 
-        objectList.append(currentP)
+
+        try:
+            currentP = Player.objects.get(id=id)
+            try:
+                latest = Player_Stats.objects.get(player=currentP, week=1)
+                setattr(currentP, 'proj_fantasy', latest.proj_fantasy)  # Attach to Player object
+                setattr(currentP, 'total_fantasy_points', latest.total_fantasy_points)  # Attach to Player object
+                setattr(currentP, 'pass_yards', latest.pass_yards)
+                setattr(currentP, 'pass_tds', latest.pass_tds)
+                setattr(currentP, 'receiving_yards', latest.receiving_yards)
+                setattr(currentP, 'receiving_tds', latest.receiving_tds)
+                setattr(currentP, 'rush_yards', latest.rush_yards)
+                setattr(currentP, 'rush_tds', latest.rush_tds)
+                setattr(currentP, 'fg_made', latest.fg_made)
+                setattr(currentP, 'extra_points_made', latest.extra_points_made)
+            except Player_Stats.DoesNotExist:
+                print(f"No stats found for player {currentP.id}")
+                setattr(currentP, 'proj_fantasy', 0)
+                setattr(currentP, 'total_fantasy_points', 0)
+                setattr(currentP, 'pass_yards', 0)
+                setattr(currentP, 'pass_tds', 0)
+                setattr(currentP, 'receiving_yards', 0)
+                setattr(currentP, 'receiving_tds', 0)
+                setattr(currentP, 'rush_yards', 0)
+                setattr(currentP, 'rush_tds', 0)
+                setattr(currentP, 'fg_made', 0)
+                setattr(currentP, 'extra_points_made', 0)
+
+
+            objectList.append(currentP)
+        except Player.DoesNotExist:
+            print(f"Player with ID {id} does not exist.")
+            # Optionally, add a placeholder for missing players
+            empty_player = Player(
+                id=None,
+                firstName="Missing",
+                lastName="Player",
+                status="x",
+                position="",
+                team="",
+            )
+            setattr(empty_player, 'proj_fantasy', 0)
+            setattr(empty_player, 'total_fantasy_points', 0)
+            objectList.append(empty_player)
+
     serializer = PlayerSerializer(objectList, many=True)
-    #print("data after serialization",serializer.data)
     return Response(serializer.data)
 
 @api_view(['GET'])

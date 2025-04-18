@@ -5,50 +5,46 @@ import math
 from channels.generic.websocket import AsyncWebsocketConsumer
 from asgiref.sync import sync_to_async
 from django.db import connection
-from .models import League, Matchup
+from .models import League, Matchup, Team
 from all_players.models import Player
 from django.contrib.auth.models import User
 
-# Import models inside functions or methods to avoid early access
-def get_user_model():
-    from django.contrib.auth.models import User
-    return User
+
+
 
 class DraftConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.user = self.scope["user"]
-        if self.user.is_authenticated:
-            self.league_id = self.scope['url_route']['kwargs']['league_id']
-            self.group_name = f"draft_{self.league_id}"
-            print(f"WebSocket connected for user: {self.user.username}, group: {self.group_name}")  # Debugging
+        self.league_id = self.scope['url_route']['kwargs']['league_id']
+        self.group_name = f'draft_{self.league_id}'
 
-            # Join the WebSocket group
-            await self.channel_layer.group_add(
-                self.group_name,
-                self.channel_name
-            )
-            await self.accept()
-        else:
-            print("WebSocket connection denied: User not authenticated")  # Debugging
-            await self.close(code=403)
+        # Join the WebSocket group
+        await self.channel_layer.group_add(
+            self.group_name,
+            self.channel_name
+        )
+        await self.accept()
 
     async def disconnect(self, close_code):
-        if hasattr(self, "group_name"):
-            print(f"WebSocket disconnected for user: {self.user.username}, group: {self.group_name}")  # Debugging
-            await self.channel_layer.group_discard(
-                self.group_name,
-                self.channel_name
-            )
-    async def receive(self, text_data):
-        # Handle incoming messages
-        pass
+        # Leave the WebSocket group
+        await self.channel_layer.group_discard(
+            self.group_name,
+            self.channel_name
+        )
 
-    async def send_draft_update(self, event):
-        # Send the draft update to the WebSocket client
-        await self.send(text_data=json.dumps(event["message"]))
+         
+    async def receive(self, text_data):
+        data = json.loads(text_data)
+        message_type = data.get('message', {}).get('type')
+
+        if message_type == 'make_pick':
+            print("Received make_pick message:", data)  # Debugging log
+            await self.handle_pick(data['message'])
+
+    #async def send_draft_update(self, event):
+     #   # Send the draft update to the WebSocket client
+      #  await self.send(text_data=json.dumps(event["message"]))
 
     async def handle_pick(self, message):
-        # Import models inside the method to avoid "Apps aren't loaded yet" error
         from .models import Draft, Team, League  # Keep these imports
         from all_players.models import Player  # Correctly import Player from all_players.models
         from django.contrib.auth.models import User
@@ -64,16 +60,19 @@ class DraftConsumer(AsyncWebsocketConsumer):
             league = await sync_to_async(League.objects.get)(id=self.league_id)
         except (Draft.DoesNotExist, Player.DoesNotExist, User.DoesNotExist, League.DoesNotExist) as e:
             print(f"Error: {e}")  # Debugging log
+            await self.check_draft_completion(league)  # Check draft completion even if an error occurs
             return
 
         # Ensure it's the user's turn
         if draft.get_next_pick() != user_id:
             print(f"Error: It's not the user's turn. Expected user {draft.get_next_pick()}, but got {user_id}.")  # Debugging log
+            await self.check_draft_completion(league)  # Check draft completion
             return
 
         # Ensure the player hasn't already been picked
         if any(pick['player_id'] == player_id for pick in draft.picks):
             print(f"Error: Player {player_id} has already been picked.")  # Debugging log
+            await self.check_draft_completion(league)  # Check draft completion
             return
 
         # Add the player to the user's team
@@ -81,32 +80,36 @@ class DraftConsumer(AsyncWebsocketConsumer):
         print(f"Team before pick: QB={team.QB}, RB1={team.RB1}, RB2={team.RB2}, WR1={team.WR1}, WR2={team.WR2}, TE={team.TE}, FLX={team.FLX}, K={team.K}, Bench={team.BN1}, {team.BN2}, {team.BN3}, {team.BN4}, {team.BN5}, {team.BN6}")  # Debugging log
         print(f"Attempting to add player {player.firstName} {player.lastName} (ID: {player_id}, Position: {position}) to the team.")  # Debugging log
 
+        # Helper function to check if a position is empty
+        def is_position_empty(value):
+            return value in [None, 'N/A', 'NULL']
+
         # Assign the player to the appropriate position
-        if position == 'Quarterback' and team.QB == 'N/A':
+        if position == 'Quarterback' and is_position_empty(team.QB):
             team.QB = player.id
-        elif position == 'Running Back' and team.RB1 == 'N/A':
+        elif position == 'Running Back' and is_position_empty(team.RB1):
             team.RB1 = player.id
-        elif position == 'Running Back' and team.RB2 == 'N/A':
+        elif position == 'Running Back' and is_position_empty(team.RB2):
             team.RB2 = player.id
-        elif position == 'Wide Receiver' and team.WR1 == 'N/A':
+        elif position == 'Wide Receiver' and is_position_empty(team.WR1):
             team.WR1 = player.id
-        elif position == 'Wide Receiver' and team.WR2 == 'N/A':
+        elif position == 'Wide Receiver' and is_position_empty(team.WR2):
             team.WR2 = player.id
-        elif position == 'Tight End' and team.TE == 'N/A':
+        elif position == 'Tight End' and is_position_empty(team.TE):
             team.TE = player.id
-        elif position == 'Place kicker' and team.K == 'N/A':
+        elif position == 'Place kicker' and is_position_empty(team.K):
             team.K = player.id
-        elif position == 'Flex' and team.FLX == 'N/A' and player.position in ['Running Back', 'Wide Receiver', 'Tight End']:
+        elif position == 'Flex' and is_position_empty(team.FLX) and player.position in ['Running Back', 'Wide Receiver', 'Tight End']:
             team.FLX = player.id
-        elif position.startswith('Bench') and 'N/A' in [team.BN1, team.BN2, team.BN3, team.BN4, team.BN5, team.BN6]:
-            # Assign to the first available bench spot
+        elif position == 'Bench' and any(is_position_empty(getattr(team, bench_spot)) for bench_spot in ['BN1', 'BN2', 'BN3', 'BN4', 'BN5', 'BN6']):
             for bench_spot in ['BN1', 'BN2', 'BN3', 'BN4', 'BN5', 'BN6']:
-                if getattr(team, bench_spot) == 'N/A':
+                if is_position_empty(getattr(team, bench_spot)):
                     setattr(team, bench_spot, player.id)
                     break
         else:
             print(f"Error: Invalid position or already filled for position {position}.")  # Debugging log
             print(f"Team state: QB={team.QB}, RB1={team.RB1}, RB2={team.RB2}, WR1={team.WR1}, WR2={team.WR2}, TE={team.TE}, FLX={team.FLX}, K={team.K}, Bench={team.BN1}, {team.BN2}, {team.BN3}, {team.BN4}, {team.BN5}, {team.BN6}")  # Debugging log
+            await self.check_draft_completion(league)  # Check draft completion
             return
 
         # Save the team asynchronously
@@ -119,30 +122,6 @@ class DraftConsumer(AsyncWebsocketConsumer):
         await sync_to_async(draft.save)()
 
         print(f"Next user ID: {draft.get_next_pick()}")  # Debugging log
-
-        all_teams = await sync_to_async(list)(Team.objects.filter(league=league))
-        all_positions_filled = all(
-            team.QB != 'N/A' and team.RB1 != 'N/A' and team.RB2 != 'N/A' and
-            team.WR1 != 'N/A' and team.WR2 != 'N/A' and team.TE != 'N/A' and
-            team.FLX != 'N/A' and team.K != 'N/A' and
-            all(getattr(team, f'BN{i}') != 'N/A' for i in range(1, 7))
-            for team in all_teams
-        )
-
-        if all_positions_filled:
-            league.draftComplete = True
-            await sync_to_async(league.save)()
-            await sync_to_async(matchUp_creation)(self.league_id)
-
-            # Notify all users that the draft is complete
-            await self.channel_layer.group_send(
-                self.group_name,
-                {
-                    'type': 'draft_complete',
-                    'message': 'Draft complete!',
-                }
-            )
-
 
         # Broadcast the pick to all users
         await self.channel_layer.group_send(
@@ -160,6 +139,39 @@ class DraftConsumer(AsyncWebsocketConsumer):
             }
         )
 
+        # Check if the draft is complete
+        await self.check_draft_completion(league)
+
+    async def check_draft_completion(self, league):
+        """Check if the draft is complete and update the league."""
+        all_teams = await sync_to_async(list)(Team.objects.filter(league=league))
+        all_positions_filled = all(
+            team.QB not in [None, 'N/A', 'NULL'] and
+            team.RB1 not in [None, 'N/A', 'NULL'] and
+            team.RB2 not in [None, 'N/A', 'NULL'] and
+            team.WR1 not in [None, 'N/A', 'NULL'] and
+            team.WR2 not in [None, 'N/A', 'NULL'] and
+            team.TE not in [None, 'N/A', 'NULL'] and
+            team.FLX not in [None, 'N/A', 'NULL'] and
+            team.K not in [None, 'N/A', 'NULL'] and
+            all(getattr(team, f'BN{i}') not in [None, 'N/A', 'NULL'] for i in range(1, 7))
+            for team in all_teams
+        )
+
+        if all_positions_filled:
+            league.draftComplete = True
+            await sync_to_async(league.save)()
+
+            # Notify all users that the draft is complete
+            await self.channel_layer.group_send(
+                self.group_name,
+                {
+                    'type': 'draft_complete',
+                    'message': 'Draft complete!',
+                }
+            )
+
+
     async def draft_message(self, event):
         # Send the message to WebSocket
         print("Broadcasting draft message:", event['message'])  # Debugging log
@@ -169,7 +181,7 @@ class DraftConsumer(AsyncWebsocketConsumer):
     
     async def draft_complete(self, event):
         await self.send(text_data=json.dumps({
-                'message': {
+            'message': {
                 'type': 'draft_complete',
                 'content': event['message']
             }
