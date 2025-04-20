@@ -62,6 +62,7 @@ urlpatterns = [
     path('api/leagues/myleagues/', user_views.my_leagues, name='my-leagues'),
     path('api/leagues/<int:LID>/user/', user_views.userTeam),
     path('api/leagues/<int:LID>/trade/', user_views.TradeInfo),
+    path('api/leagues/<int:League_id>/trade/execute/', user_views.execute_trade, name='execute_trade'),
     path('api/leagues/myPlayers/', user_views.myPlayers),
     path('api/leagues/members/', user_views.leagueMatchups),
     path('api/leagues/allTeams/', user_views.allTeams),
