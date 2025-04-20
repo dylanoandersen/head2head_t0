@@ -1,13 +1,18 @@
+import json
+
 from django.contrib.auth import authenticate
+from django.db import transaction
 from django.forms.models import model_to_dict
 from django.shortcuts import render
 from datetime import datetime;
 
+from django.views.decorators.csrf import csrf_exempt
+
 from all_players.models import Player, Player_Stats
+from .helpers import validate_trade
 from .models import Profile, League, Team, Draft, Notification, Invite, Matchup
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
-
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.http import JsonResponse
 from rest_framework.views import APIView
@@ -23,6 +28,8 @@ import random
 from django.core.paginator import Paginator
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+
+from .trade_processor import process_trade
 
 logger = logging.getLogger(__name__)
 
@@ -927,3 +934,52 @@ class TeamDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Team.objects.all()
     serializer_class = TeamSerializer
     permission_classes = [permissions.IsAuthenticated]
+import logging
+logger = logging.getLogger(__name__)
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])  # Enforce authentication
+def execute_trade(request, League_id):
+    print(f"Request data: {request.data}")  # Log the request payload
+    print(f"Request headers: {request.headers}")  # Log headers for token inspection
+
+    # Debugging: Check field types
+    print(f"OpponentPlayers: {type(request.data.get('opponentPlayers'))}")
+    print(f"OpponentTeamId: {type(request.data.get('opponentTeamId'))}")
+    print(f"UserPlayers: {type(request.data.get('userPlayers'))}")
+    try:
+        # Parse JSON body
+        body = request.data
+        user_players = body.get("userPlayers", {})
+        opponent_players = body.get("opponentPlayers", {})
+        opponent_team_id = body.get("opponentTeamId")  # This will also be a string
+
+        # Validate league existence
+        league = League.objects.get(id=str(League_id))  # Force string conversion
+
+        # Validate user team
+        user_team = Team.objects.get(league=league, author=request.user)
+
+        # Validate opponent team
+        opponent_team = Team.objects.get(id=str(opponent_team_id), league=league)  # Force string conversion
+
+        # Validate trade logic
+        if not validate_trade(user_team, opponent_team, user_players, opponent_players):
+            return Response(
+                {"error": "Invalid trade. Ensure positional equivalence and valid players."},
+                status=400,
+            )
+
+        # Process trade in a transaction
+        with transaction.atomic():
+            process_trade(user_team, opponent_team, user_players, opponent_players)
+
+        return Response({"message": "Trade executed successfully!"}, status=200)
+    except League.DoesNotExist:
+        return Response({"error": "League not found."}, status=404)
+    except Team.DoesNotExist:
+        return Response(
+            {"error": "User or opponent team not found in this league."}, status=404
+        )
+    except Exception as e:
+        return Response({"error": f"Internal server error: {str(e)}"}, status=500)
