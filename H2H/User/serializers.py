@@ -93,7 +93,7 @@ class TeamSerializer(serializers.ModelSerializer):
     class Meta:
         model = Team
         fields = ['id', 'title', 'QB', 'RB1', 'RB2', 'WR1', 'WR2', 'TE', 'FLX', 'K', 'DEF', 
-                  'BN1', 'BN2', 'BN3', 'BN4', 'BN5', 'BN6', 'IR1', 'IR2', 'author', 'league', 'rank']
+                  'BN1', 'BN2', 'BN3', 'BN4', 'BN5', 'BN6', 'IR1', 'IR2', 'author', 'league', 'rank', 'wins', 'losses', 'points_for', 'points_against']
 
 class MatchupSerializer(serializers.ModelSerializer):
     team1 = UserSerializer(read_only=True)
@@ -114,6 +114,10 @@ class CustomTeamSerializer(serializers.Serializer):
     title = serializers.CharField()
     rank = serializers.IntegerField()
     author = serializers.CharField()
+    wins = serializers.IntegerField()
+    losses = serializers.IntegerField()
+    points_for = serializers.IntegerField()
+    points_against = serializers.IntegerField()
     QB = PlayerSlotSerializer(allow_null=True)
     RB1 = PlayerSlotSerializer(allow_null=True)
     RB2 = PlayerSlotSerializer(allow_null=True)
