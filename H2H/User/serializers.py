@@ -10,10 +10,16 @@ class NotificationSerializer(serializers.ModelSerializer):
         fields = ['id', 'message', 'link', 'is_read', 'created_at']
 
 
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = ['date_of_birth', 'profile_picture', 'currency']
+
 class UserSerializer(serializers.ModelSerializer):
+    profile = ProfileSerializer(read_only=True)  # Add the profile field
     class Meta:
         model = User
-        fields = ['id', 'username', 'password', 'email', 'first_name', 'last_name']
+        fields = ['id', 'username', 'password', 'email', 'first_name', 'last_name', 'profile']
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
@@ -25,10 +31,6 @@ class UserSerializer(serializers.ModelSerializer):
             last_name=validated_data['last_name']
         )
         return user
-class ProfileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Profile
-        fields = ['date_of_birth', 'profile_picture']
 
 class PlayerSerializer(serializers.ModelSerializer):
     proj_fantasy = serializers.SerializerMethodField()

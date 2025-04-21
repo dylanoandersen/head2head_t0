@@ -934,52 +934,35 @@ class TeamDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Team.objects.all()
     serializer_class = TeamSerializer
     permission_classes = [permissions.IsAuthenticated]
-import logging
-logger = logging.getLogger(__name__)
 
 @api_view(['POST'])
-@permission_classes([permissions.IsAuthenticated])  # Enforce authentication
+@permission_classes([IsAuthenticated])
 def execute_trade(request, League_id):
-    print(f"Request data: {request.data}")  # Log the request payload
-    print(f"Request headers: {request.headers}")  # Log headers for token inspection
-
-    # Debugging: Check field types
-    print(f"OpponentPlayers: {type(request.data.get('opponentPlayers'))}")
-    print(f"OpponentTeamId: {type(request.data.get('opponentTeamId'))}")
-    print(f"UserPlayers: {type(request.data.get('userPlayers'))}")
     try:
-        # Parse JSON body
         body = request.data
         user_players = body.get("userPlayers", {})
         opponent_players = body.get("opponentPlayers", {})
-        opponent_team_id = body.get("opponentTeamId")  # This will also be a string
+        opponent_team_id = body.get("opponentTeamId")
+        currency_offered = body.get("currencyOffered", 0)
+        currency_requested = body.get("currencyRequested", 0)
 
-        # Validate league existence
-        league = League.objects.get(id=str(League_id))  # Force string conversion
-
-        # Validate user team
+        # Validate league and teams
+        league = League.objects.get(id=League_id)
         user_team = Team.objects.get(league=league, author=request.user)
+        opponent_team = Team.objects.get(id=opponent_team_id, league=league)
 
-        # Validate opponent team
-        opponent_team = Team.objects.get(id=str(opponent_team_id), league=league)  # Force string conversion
-
-        # Validate trade logic
-        if not validate_trade(user_team, opponent_team, user_players, opponent_players):
-            return Response(
-                {"error": "Invalid trade. Ensure positional equivalence and valid players."},
-                status=400,
-            )
+        # Validate trade
+        if not validate_trade(user_team, opponent_team, user_players, opponent_players, currency_offered, currency_requested):
+            return Response({"error": "Invalid trade. Ensure positional equivalence, valid players, and sufficient funds."}, status=400)
 
         # Process trade in a transaction
         with transaction.atomic():
-            process_trade(user_team, opponent_team, user_players, opponent_players)
+            process_trade(user_team, opponent_team, user_players, opponent_players, currency_offered, currency_requested)
 
         return Response({"message": "Trade executed successfully!"}, status=200)
     except League.DoesNotExist:
         return Response({"error": "League not found."}, status=404)
     except Team.DoesNotExist:
-        return Response(
-            {"error": "User or opponent team not found in this league."}, status=404
-        )
+        return Response({"error": "User or opponent team not found in this league."}, status=404)
     except Exception as e:
         return Response({"error": f"Internal server error: {str(e)}"}, status=500)
