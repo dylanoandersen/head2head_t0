@@ -1,13 +1,18 @@
+import json
+
 from django.contrib.auth import authenticate
+from django.db import transaction
 from django.forms.models import model_to_dict
 from django.shortcuts import render
 from datetime import datetime;
 
+from django.views.decorators.csrf import csrf_exempt
+
 from all_players.models import Player, Player_Stats
+from .helpers import validate_trade
 from .models import Profile, League, Team, Draft, Notification, Invite, Matchup
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
-
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.http import JsonResponse
 from rest_framework.views import APIView
@@ -23,6 +28,8 @@ import random
 from django.core.paginator import Paginator
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+
+from .trade_processor import process_trade
 
 logger = logging.getLogger(__name__)
 
@@ -524,10 +531,11 @@ def myPlayers(request):
     objectList = []
     player_parms = request.GET.get('players', None)
     player_list = player_parms.split(',') if player_parms else []
-    print(f"Player List: {player_list}")  # Log the player list
+    print(f"Player List: {player_list}")
+
     for id in player_list:
-        if id == "N/A" or id is None or id == "" or id == "null":
-        # Create a placeholder "empty" player object (not saved to the DB)
+        if id in [None, "null", "N/A", ""]:
+            # Create a placeholder "empty" player object (not saved to the DB)
             empty_player = Player(
                 id=None,
                 firstName="Empty",
@@ -536,49 +544,65 @@ def myPlayers(request):
                 position="",
                 team="",
             )
-            setattr(empty_player, 'proj_fantasy', None)  # Set default if no stats
-            setattr(empty_player, 'total_fantasy_points', None)
-            setattr(empty_player, 'pass_yards', None)
-            setattr(empty_player, 'pass_tds', None)
-            setattr(empty_player, 'receiving_yards', None)
-            setattr(empty_player, 'receiving_tds', None)
-            setattr(empty_player, 'rush_yards', None)
-            setattr(empty_player, 'rush_tds', None)
-            setattr(empty_player, 'fg_made', None)
-            setattr(empty_player, 'extra_points_made', None)
-
+            setattr(empty_player, 'proj_fantasy', 0)
+            setattr(empty_player, 'total_fantasy_points', 0)
+            setattr(empty_player, 'pass_yards', 0)
+            setattr(empty_player, 'pass_tds', 0)
+            setattr(empty_player, 'receiving_yards', 0)
+            setattr(empty_player, 'receiving_tds', 0)
+            setattr(empty_player, 'rush_yards', 0)
+            setattr(empty_player, 'rush_tds', 0)
+            setattr(empty_player, 'fg_made', 0)
+            setattr(empty_player, 'extra_points_made', 0)
             objectList.append(empty_player)
             continue
-        currentP = Player.objects.get(id=id)
-        try:
-            latest = Player_Stats.objects.get(player=currentP, week=1)
-            setattr(currentP, 'proj_fantasy', latest.proj_fantasy)  # Attach to Player object
-            setattr(currentP, 'total_fantasy_points', latest.total_fantasy_points)  # Attach to Player object
-            setattr(currentP, 'pass_yards', latest.pass_yards)
-            setattr(currentP, 'pass_tds', latest.pass_tds)
-            setattr(currentP, 'receiving_yards', latest.receiving_yards)
-            setattr(currentP, 'receiving_tds', latest.receiving_tds)
-            setattr(currentP, 'rush_yards', latest.rush_yards)
-            setattr(currentP, 'rush_tds', latest.rush_tds)
-            setattr(currentP, 'fg_made', latest.fg_made)
-            setattr(currentP, 'extra_points_made', latest.extra_points_made)
-            #print(currentP, "stats found", model_to_dict(latest))
-        except:
-            print(currentP, "no stats")
-            setattr(currentP, 'proj_fantasy', None)  # Set default if no stats
-            setattr(currentP, 'total_fantasy_points', None)
-            setattr(currentP, 'pass_yards', None)
-            setattr(currentP, 'pass_tds', None)
-            setattr(currentP, 'receiving_yards', None)
-            setattr(currentP, 'receiving_tds', None)
-            setattr(currentP, 'rush_yards', None)
-            setattr(currentP, 'rush_tds', None)
-            setattr(currentP, 'fg_made', None)
-            setattr(currentP, 'extra_points_made', None)
 
-        objectList.append(currentP)
+
+        try:
+            currentP = Player.objects.get(id=id)
+            try:
+                latest = Player_Stats.objects.get(player=currentP, week=1)
+                setattr(currentP, 'proj_fantasy', latest.proj_fantasy)  # Attach to Player object
+                setattr(currentP, 'total_fantasy_points', latest.total_fantasy_points)  # Attach to Player object
+                setattr(currentP, 'pass_yards', latest.pass_yards)
+                setattr(currentP, 'pass_tds', latest.pass_tds)
+                setattr(currentP, 'receiving_yards', latest.receiving_yards)
+                setattr(currentP, 'receiving_tds', latest.receiving_tds)
+                setattr(currentP, 'rush_yards', latest.rush_yards)
+                setattr(currentP, 'rush_tds', latest.rush_tds)
+                setattr(currentP, 'fg_made', latest.fg_made)
+                setattr(currentP, 'extra_points_made', latest.extra_points_made)
+            except Player_Stats.DoesNotExist:
+                print(f"No stats found for player {currentP.id}")
+                setattr(currentP, 'proj_fantasy', 0)
+                setattr(currentP, 'total_fantasy_points', 0)
+                setattr(currentP, 'pass_yards', 0)
+                setattr(currentP, 'pass_tds', 0)
+                setattr(currentP, 'receiving_yards', 0)
+                setattr(currentP, 'receiving_tds', 0)
+                setattr(currentP, 'rush_yards', 0)
+                setattr(currentP, 'rush_tds', 0)
+                setattr(currentP, 'fg_made', 0)
+                setattr(currentP, 'extra_points_made', 0)
+
+
+            objectList.append(currentP)
+        except Player.DoesNotExist:
+            print(f"Player with ID {id} does not exist.")
+            # Optionally, add a placeholder for missing players
+            empty_player = Player(
+                id=None,
+                firstName="Missing",
+                lastName="Player",
+                status="x",
+                position="",
+                team="",
+            )
+            setattr(empty_player, 'proj_fantasy', 0)
+            setattr(empty_player, 'total_fantasy_points', 0)
+            objectList.append(empty_player)
+
     serializer = PlayerSerializer(objectList, many=True)
-    #print("data after serialization",serializer.data)
     return Response(serializer.data)
 
 @api_view(['GET'])
@@ -597,6 +621,33 @@ def userTeam(request, LID):
 
     serializer = TeamSerializer(team)
     return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def TradeInfo(request, LID):
+    if request.method == 'GET':
+        try:
+            # Fetch the league by ID
+            league = League.objects.get(id=LID)
+
+            # Fetch all teams associated with the league
+            teams = Team.objects.filter(league=league)
+
+            # Check if there are teams in the league
+            if not teams.exists():
+                return Response({"error": "No teams found in this league."}, status=status.HTTP_404_NOT_FOUND)
+        except League.DoesNotExist:
+            return Response({"error": f"League with ID {LID} does not exist."}, status=status.HTTP_404_NOT_FOUND)
+
+        # Serialize the teams and return their data
+        serializer = TeamSerializer(teams, many=True)
+        return Response({
+            "league": league.name,
+            "teams": serializer.data,
+        })
+    else:
+        return Response({"error": "Invalid request method"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
@@ -886,3 +937,35 @@ class TeamDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Team.objects.all()
     serializer_class = TeamSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def execute_trade(request, League_id):
+    try:
+        body = request.data
+        user_players = body.get("userPlayers", {})
+        opponent_players = body.get("opponentPlayers", {})
+        opponent_team_id = body.get("opponentTeamId")
+        currency_offered = body.get("currencyOffered", 0)
+        currency_requested = body.get("currencyRequested", 0)
+
+        # Validate league and teams
+        league = League.objects.get(id=League_id)
+        user_team = Team.objects.get(league=league, author=request.user)
+        opponent_team = Team.objects.get(id=opponent_team_id, league=league)
+
+        # Validate trade
+        if not validate_trade(user_team, opponent_team, user_players, opponent_players, currency_offered, currency_requested):
+            return Response({"error": "Invalid trade. Ensure positional equivalence, valid players, and sufficient funds."}, status=400)
+
+        # Process trade in a transaction
+        with transaction.atomic():
+            process_trade(user_team, opponent_team, user_players, opponent_players, currency_offered, currency_requested)
+
+        return Response({"message": "Trade executed successfully!"}, status=200)
+    except League.DoesNotExist:
+        return Response({"error": "League not found."}, status=404)
+    except Team.DoesNotExist:
+        return Response({"error": "User or opponent team not found in this league."}, status=404)
+    except Exception as e:
+        return Response({"error": f"Internal server error: {str(e)}"}, status=500)

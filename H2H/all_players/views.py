@@ -27,16 +27,45 @@ def allPlayer(request):
     else:
         print('Could not grab all players')
 
-@api_view(['GET'])
-def player_info(request,id):
-    try:
-        player = Player.objects.get(pk=id)
-    except Player.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+# @api_view(['GET'])
+# def player_info(request,id):
+#     try:
+#         player = Player.objects.get(pk=id)
+#     except Player.DoesNotExist:
+#         return Response(status=status.HTTP_404_NOT_FOUND)
+#
+#     if request.method == 'GET':
+#         serializer = PlayerInfoSerializer(player)
+#         return Response({"Player": serializer.data})
 
-    if request.method == 'GET':
-        serializer = PlayerInfoSerializer(player)
-        return Response({"Player": serializer.data})
+@api_view(['GET'])
+def player_info(request, id=None):
+    """
+    Handles both individual and batch player information retrieval.
+    - If `id` is provided in the URL, retrieves a single player.
+    - If `ids` query parameter is provided, retrieves a batch of players.
+    """
+    try:
+        # Check if batch request
+        ids = request.query_params.getlist('ids')  # Get batch IDs from query parameters
+        if ids:
+            players = Player.objects.filter(pk__in=ids)
+            if not players.exists():
+                return Response({"error": "No players found for the provided IDs."}, status=status.HTTP_404_NOT_FOUND)
+            serializer = PlayerInfoSerializer(players, many=True)
+            return Response({"Players": serializer.data})
+
+        # Single player request
+        if id is not None:
+            player = Player.objects.get(pk=id)
+            serializer = PlayerInfoSerializer(player)
+            return Response({"Player": serializer.data})
+
+        # If neither `id` nor `ids` is provided
+        return Response({"error": "No player ID or batch IDs provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+    except Player.DoesNotExist:
+        return Response({"error": "Player not found."}, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['GET'])
 def player_stats(request,id):
