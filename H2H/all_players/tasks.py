@@ -4,6 +4,7 @@ import requests
 import pytz
 from datetime import datetime, date, timedelta
 from django.core.files.base import ContentFile
+from django.db.models import F
 
 # Ensure Django settings are loaded
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "head2head.settings")
@@ -11,6 +12,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "head2head.settings")
 
 from .espn_api import fetch_espn_data, get_game_stats, fetch_player_positions, get_stats, game_details, get_def_stats, get_pts_proj, get_totalYearly_proj, player_news, player_headshots
 from .models import Player, Game, Player_Stats, Player_News, Def_Stats
+from User.models import League, Team, Week, Matchup
 
 team_id = [(1, 'Falcons'), (2, 'Bills'), (3, 'Bears'), (4, 'Bengals'), (5, 'Browns'), (6, 'Cowboys'), (7, 'Broncos'), (8, 'Lions'), (9, 'Packers'), (34, 'Texans'), (11, 'Colts'), (30, 'Jaguars'), (12, 'Chiefs'), (14, 'Rams'), (24, 'Chargers'), (15, 'Dolphins'), (16, 'Vikings'), (17, 'Patriots'), (18, 'Saints'), (19, 'Giants'), (20, 'Jets'), (13, 'Raiders'), (21, 'Eagles'), (23, 'Steelers'), (25, '49ers'), (26, 'Seahawks'), (27, 'Buccaneers'), (10, 'Titans'), (22, 'Cardinals'), (28, 'Commanders'), (33, 'Ravens'), (29, 'Panthers')]
 team_dict = {name: id for id, name in team_id}
@@ -57,6 +59,10 @@ def live_update():
     #projectionz(18)
     #get_player_news()
 
+    today = date.today()
+    if today.weekday() == 2:
+        weekly_update()
+
     data, game_ids, game_time = today_games()  # Get today's games and team IDs
 
     if not data:
@@ -97,6 +103,30 @@ def live_update():
     #     )
 
 # Retrieves a list of teams playing today and their game IDs
+def weekly_update():
+    week = Week.objects.get(id=1).week
+    matchups = Matchup.objects.filter(week = week)
+    for m in matchups:
+        team = Team.objects.get(author=m.team1, league=m.league)
+        team.points_for = m.team1score
+        team.points_against = m.team2score
+        team.save(update_fields=['points_for', 'points_against'])
+
+        team = Team.objects.get(author=m.team2, league=m.league)
+        team.points_for = m.team2score
+        team.points_against = m.team1score
+        team.save(update_fields=['points_for', 'points_against'])
+
+
+    Week.objects.filter(id=1).update(week=F('week') + 1)
+    
+    for l in League.objects.all():
+        teams = Team.objects.filter(league=l).order_by('-wins', '-points_for')
+
+        for index, team in enumerate(teams, start=1):
+            team.rank = index
+            team.save(update_fields=['rank']) 
+
 def today_games():
     teams_playing_today = []
     teams_playing_ids = []
@@ -515,8 +545,36 @@ def update_player_status1(game_dict):
                 print("Player stats for a game added")
 
         print('done with game')
-
+    total()
     print('round done')
+
+def total():
+    target_fields = ['QB', 'RB1', 'RB2', 'WR1', 'WR2', 'TE', 'FLX', 'K', 'DEF']
+    for le in League.objects.all():
+        users = le.users.all()
+        for user in users:
+            score = 0
+            try:
+                team = Team.objects.get(author=user, league=le)
+                for field in team._meta.get_fields():
+                    if field.name in target_fields and getattr(team, field.name) != 'N/A':
+                        week = Week.objects.get(id=1).week
+
+                        player = Player.objects.get(id=getattr(team, field.name))
+
+                        p = Player_Stats.objects.get(player=player, week=week)
+                        score = score + p.total_fantasy_points
+
+                ma = Matchup.objects.filter(league = le, week=week)
+                for m in ma:
+                    if m.team1 == user or m.team2 == user:
+                        if m.team1 == user:
+                            m.team1score = score
+                        else:
+                            m.team2score = score
+                        m.save()
+            except:
+                continue
 
 def fantasy_point_calculator_offense(pass_y, pass_td, pass_i, rush_y ,rush_td, rec, rec_y, rec_td, ret_td, fums):
     pass_y_pt = pass_y * .04

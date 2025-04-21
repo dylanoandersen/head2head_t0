@@ -176,6 +176,7 @@ class DraftConsumer(AsyncWebsocketConsumer):
         }))
 
 def matchUp_creation(lid):
+    print('Creating matchups...')
     league = League.objects.get(id = lid)
     users = list(league.users.all())
     username = [user.username for user in users]

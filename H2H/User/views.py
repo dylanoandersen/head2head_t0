@@ -526,7 +526,7 @@ def myPlayers(request):
     player_list = player_parms.split(',') if player_parms else []
     print(f"Player List: {player_list}")  # Log the player list
     for id in player_list:
-        if id == "N/A":
+        if id == "N/A" or id is None or id == "" or id == "null":
         # Create a placeholder "empty" player object (not saved to the DB)
             empty_player = Player(
                 id=None,
@@ -601,13 +601,12 @@ def userTeam(request, LID):
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def leagueMatchups(request):
-    members = request.GET.get("members")
-    member_ids = [int(x) for x in members.split(",")]
+    members = request.GET.get("members", "")
+    member_ids = [int(x) for x in members.split(",") if x.strip()]
     weekly = Matchup.objects.filter(week = 1)
     matchups = []
     for m in weekly:
         if m.team1.id in member_ids and m.team2.id in member_ids:
-            print(m)
             matchups.append(m)
 
     serializer = MatchupSerializer(matchups, many = True)
@@ -618,7 +617,8 @@ def leagueMatchups(request):
 def allTeams(request):
     members = request.GET.get("members")
     league = request.GET.get("leagueID")
-    member_ids = [int(x) for x in members.split(",")]
+    bool = request.GET.get("matchup")
+    member_ids = [int(x) for x in members.split(",") if x.strip()]
     leagueid = int(league)
 
     league = League.objects.get(id=leagueid)
@@ -629,7 +629,7 @@ def allTeams(request):
         'BN1', 'BN2', 'BN3', 'BN4', 'BN5', 'BN6', 'IR1', 'IR2'
     ]
     for user_id in member_ids:
-        if user_id == request.user.id:
+        if user_id == request.user.id and bool == "true":
             continue
         author = User.objects.get(id=user_id)
         team = Team.objects.get(league=league, author=author)
@@ -638,14 +638,17 @@ def allTeams(request):
             'title': team.title,
             'rank': team.rank,
             'author': team.author.username,
+            'wins': team.wins,
+            'losses': team.losses,
+            'points_for': team.points_for,
+            'points_against': team.points_against,
         }
 
         for pos in position_fields:
             player_id = getattr(team, pos)
-            if player_id and player_id != "N/A":
+            if player_id and player_id != "N/A" and player_id != "" and player_id != "null":
                 player = Player.objects.get(id = player_id)
                 fullName = player.firstName + " " + player.lastName
-                print("player: ",player)
 
                 try:
                     stats = Player_Stats.objects.get(player=player, week = 1) # get most recent

@@ -24,6 +24,7 @@ from all_players import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('week/', views.week),
     path('allPlayers/', views.allPlayer),
     path('playerInfo/<int:id>', views.player_info),
     path('playerStats/<int:id>', views.player_stats),
