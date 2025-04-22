@@ -123,8 +123,6 @@ def search_player(request):
     team_query = request.GET.get("team", "").strip()  # Filter by team
     position_query = request.GET.get("position", "").strip()  # Filter by position
     status_query = request.GET.get("status", "").strip()  # Filter by status
-    yearly_proj_min = request.GET.get("yearly_proj_min", None)  # Min yearly projection
-    yearly_proj_max = request.GET.get("yearly_proj_max", None)  # Max yearly projection
     page = int(request.GET.get("page", 1))  # Pagination
     players_per_page = 10  # Players per page
 
@@ -148,10 +146,8 @@ def search_player(request):
         players = players.filter(position__icontains=position_query)
     if status_query:
         players = players.filter(status__icontains=status_query)
-    if yearly_proj_min:
-        players = players.filter(yearly_proj__gte=float(yearly_proj_min))
-    if yearly_proj_max:
-        players = players.filter(yearly_proj__lte=float(yearly_proj_max))
+
+    players = players.order_by("-yearly_proj")
 
     # Paginate results
     paginator = Paginator(players, players_per_page)

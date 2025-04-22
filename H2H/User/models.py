@@ -128,6 +128,24 @@ class Matchup(models.Model):
     
     team1score = models.DecimalField(max_digits=5, decimal_places=2)
     team2score = models.DecimalField(max_digits=5, decimal_places=2)
+    position = models.CharField(max_length=50, null=True, blank=True)  # Randomized position for betting
+
 
 class Week(models.Model):
     week = models.IntegerField(default=0)
+    updated_on_wednesday = models.BooleanField(default=False)  # New flag to prevent multiple updates
+
+
+class Bet(models.Model):
+    matchup = models.ForeignKey(Matchup, on_delete=models.CASCADE, related_name="bets")  # Connect to Matchup by ID
+    league = models.ForeignKey(League, on_delete=models.CASCADE, related_name="bets")  # Connect to League by ID
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="bets")  # Connect to Team by ID
+    player_id = models.IntegerField()  # Store the player ID directly
+    position = models.CharField(max_length=50)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved = models.BooleanField(default=False)
+    winner = models.ForeignKey(Team, on_delete=models.SET_NULL, null=True, blank=True, related_name="won_bets")
+
+    def __str__(self):
+        return f"Bet by {self.team} on {self.player} for {self.amount} in {self.matchup}"    

@@ -162,6 +162,9 @@ class DraftConsumer(AsyncWebsocketConsumer):
             league.draftComplete = True
             await sync_to_async(league.save)()
 
+            # Generate matchups if the draft is complete
+            await sync_to_async(matchUp_creation)(league.id)
+
             # Notify all users that the draft is complete
             await self.channel_layer.group_send(
                 self.group_name,
@@ -202,6 +205,8 @@ def matchUp_creation(lid):
 
     used_matchups = set()
     rounds = []
+    positions = ["QB", "RB1", "RB2", "WR1", "WR2", "TE", "FLX", "K", "DEF"]
+
 
     while len(rounds) < 15:
         current_round = []
@@ -239,6 +244,8 @@ def matchUp_creation(lid):
             if team1_id is None or team2_id is None:
                 real_team_id = team1_id or team2_id
                 real_team = (User.objects.get(id=real_team_id))
+                random_position = random.choice(positions)
+
 
                 Matchup.objects.update_or_create(
                     league=league,
@@ -248,6 +255,8 @@ def matchUp_creation(lid):
                     defaults={
                         'team1score': 0,
                         'team2score': 0,
+                        'position': random.choice(["QB", "RB", "WR", "TE", "K"])  # Assign random position
+
                         # maybe include 'is_bye': True if you track it
                     }
                 )
@@ -262,6 +271,8 @@ def matchUp_creation(lid):
                     team2=team2,
                     defaults={
                         'team1score': 0,
-                        'team2score': 0
+                        'team2score': 0,
+                        'position': random.choice(["QB", "RB", "WR", "TE", "K"])  # Assign random position
+
                     }
                 )

@@ -73,5 +73,19 @@ urlpatterns = [
     path('api/notifications/<int:notification_id>/read/', user_views.mark_notification_as_read, name='mark_notification_as_read'),
     path('api/notifications/<int:notification_id>/delete/', user_views.delete_notification, name='delete_notification'),
     path('api/notifications/<int:notification_id>/unread/', user_views.mark_notification_as_unread, name='mark_notification_as_unread'),
+    path('api/matchup/<int:matchup_id>/', user_views.get_matchup, name='get_matchup'),
+    path('api/league/<int:league_id>/user-matchup/', user_views.get_user_matchup, name='get_user_matchup'),
+    path('api/matchup/<int:matchup_id>/bets/', user_views.get_bets_for_matchup, name='get_bets_for_matchup'),
+    path('api/matchup/<int:matchup_id>/place-bet/', user_views.place_bet, name='place_bet'),
+    path('api/matchup/<int:matchup_id>/available-players/', user_views.get_available_players_for_betting, name='get_available_players_for_betting'),
+    path('api/league/<int:league_id>/matchup/<int:matchup_id>/details/', user_views.get_matchup_and_team, name='get_matchup_and_team'),
+    path('api/league/<int:league_id>/matchup/<int:matchup_id>/place-bet/', user_views.place_bet, name='place_bet'),
+    path('api/league/<int:league_id>/matchup/<int:matchup_id>/verify/', user_views.verify_user_matchup, name='verify_user_matchup'),
+    path('api/league/<int:league_id>/draft-picks/', user_views.get_draft_picks, name='get-draft-picks'),
+    path("api/get-usernames/", user_views.get_usernames, name="get-usernames"),
+
+
+    
+
 
 ]

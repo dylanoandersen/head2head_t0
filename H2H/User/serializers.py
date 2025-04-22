@@ -1,8 +1,14 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Profile, League, Team, Matchup, Notification
+from .models import Profile, League, Team, Matchup, Notification, Bet
 from all_players.models import Player
 
+
+
+class BetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Bet
+        fields = '__all__'
 
 class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -31,6 +37,7 @@ class UserSerializer(serializers.ModelSerializer):
             last_name=validated_data['last_name']
         )
         return user
+
 
 class PlayerSerializer(serializers.ModelSerializer):
     proj_fantasy = serializers.SerializerMethodField()
