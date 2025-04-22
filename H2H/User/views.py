@@ -11,8 +11,12 @@ from django.db import models  # Import models to fix "models is not defined"
 from django.views.decorators.csrf import csrf_exempt
 
 from all_players.models import Player, Player_Stats
+
 from .models import Profile, League, Team, Draft, Notification, Invite, Matchup, Bet, Week
+
 from .helpers import validate_trade
+
+
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
 from rest_framework.permissions import IsAuthenticated, AllowAny

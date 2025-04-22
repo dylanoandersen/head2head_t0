@@ -37,10 +37,7 @@ class UserSerializer(serializers.ModelSerializer):
             last_name=validated_data['last_name']
         )
         return user
-class ProfileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Profile
-        fields = ['date_of_birth', 'profile_picture', 'currency']
+
 
 class PlayerSerializer(serializers.ModelSerializer):
     proj_fantasy = serializers.SerializerMethodField()
