@@ -4,6 +4,8 @@ import requests
 import pytz
 import sys
 import itertools
+from django.db.models import F
+
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "head2head.settings")
 django.setup()  # Initializes Django (uncomment if required to load Django models)
@@ -12,7 +14,7 @@ from asgiref.sync import sync_to_async
 import asyncio
 from datetime import datetime, date, timedelta
 from django.core.files.base import ContentFile
-from User.models import Matchup
+from User import models
 from django.contrib.auth.models import User
 import random
 
@@ -270,7 +272,53 @@ def team_bye():
             print("No teams on bye")
             continue
 
-def theWeek():
-    Week.objects.create(
-        week = 1
-    )
+def total():
+    target_fields = ['QB', 'RB1', 'RB2', 'WR1', 'WR2', 'TE', 'FLX', 'K', 'DEF']
+    for le in League.objects.all():
+        users = le.users.all()
+        for user in users:
+            score = 0
+            try:
+                team = models.Team.objects.get(author=user, league=le)
+                for field in team._meta.get_fields():
+                    if field.name in target_fields and getattr(team, field.name) != 'N/A':
+                        week = Week.objects.get(id=1).week
+
+                        player = Player.objects.get(id=getattr(team, field.name))
+
+                        p = Player_Stats.objects.get(player=player, week=week)
+                        score = score + p.total_fantasy_points
+
+                ma = models.Matchup.objects.filter(league = le, week=week)
+                for m in ma:
+                    if m.team1 == user or m.team2 == user:
+                        if m.team1 == user:
+                            m.team1score = score
+                        else:
+                            m.team2score = score
+                        m.save()
+            except:
+                continue
+def weekly_update():
+    week = Week.objects.get(id=1).week
+    matchups = models.Matchup.objects.filter(week = week)
+    for m in matchups:
+        team = models.Team.objects.get(author=m.team1, league=m.league)
+        team.points_for = m.team1score
+        team.points_against = m.team2score
+        team.save(update_fields=['points_for', 'points_against'])
+
+        team = models.Team.objects.get(author=m.team2, league=m.league)
+        team.points_for = m.team2score
+        team.points_against = m.team1score
+        team.save(update_fields=['points_for', 'points_against'])
+
+
+    Week.objects.filter(id=1).update(week=F('week') + 1)
+    
+    for l in League.objects.all():
+        teams = models.Team.objects.filter(league=l).order_by('-wins', '-points_for')
+
+        for index, team in enumerate(teams, start=1):
+            team.rank = index
+            team.save(update_fields=['rank']) 
