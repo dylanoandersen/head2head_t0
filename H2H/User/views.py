@@ -1,15 +1,24 @@
+import json
+
 from django.contrib.auth import authenticate
+from django.db import transaction
 from django.forms.models import model_to_dict
 from django.shortcuts import render
 from datetime import datetime;
 from django.db import models  # Import models to fix "models is not defined"
 
 
+from django.views.decorators.csrf import csrf_exempt
+
 from all_players.models import Player, Player_Stats
+
 from .models import Profile, League, Team, Draft, Notification, Invite, Matchup, Bet, Week
+
+from .helpers import validate_trade
+
+
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.contrib.auth.models import User
-
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.http import JsonResponse
 from rest_framework.views import APIView
@@ -25,6 +34,8 @@ import random
 from django.core.paginator import Paginator
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+
+from .trade_processor import process_trade
 
 logger = logging.getLogger(__name__)
 
@@ -854,10 +865,10 @@ def myPlayers(request):
     objectList = []
     player_parms = request.GET.get('players', None)
     player_list = player_parms.split(',') if player_parms else []
-    print(f"Player List: {player_list}")  # Debugging log
+    print(f"Player List: {player_list}")
 
     for id in player_list:
-        if id in [None, "null", "N/A", ""]:  # Skip invalid IDs
+        if id in [None, "null", "N/A", ""]:
             # Create a placeholder "empty" player object (not saved to the DB)
             empty_player = Player(
                 id=None,
@@ -975,13 +986,12 @@ def TradeInfo(request, LID):
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
 def leagueMatchups(request):
-    members = request.GET.get("members")
-    member_ids = [int(x) for x in members.split(",")]
+    members = request.GET.get("members", "")
+    member_ids = [int(x) for x in members.split(",") if x.strip()]
     weekly = Matchup.objects.filter(week = 1)
     matchups = []
     for m in weekly:
         if m.team1.id in member_ids and m.team2.id in member_ids:
-            print(m)
             matchups.append(m)
 
     serializer = MatchupSerializer(matchups, many = True)
@@ -992,7 +1002,8 @@ def leagueMatchups(request):
 def allTeams(request):
     members = request.GET.get("members")
     league = request.GET.get("leagueID")
-    member_ids = [int(x) for x in members.split(",")]
+    bool = request.GET.get("matchup")
+    member_ids = [int(x) for x in members.split(",") if x.strip()]
     leagueid = int(league)
 
     league = League.objects.get(id=leagueid)
@@ -1003,7 +1014,7 @@ def allTeams(request):
         'BN1', 'BN2', 'BN3', 'BN4', 'BN5', 'BN6', 'IR1', 'IR2'
     ]
     for user_id in member_ids:
-        if user_id == request.user.id:
+        if user_id == request.user.id and bool == "true":
             continue
         author = User.objects.get(id=user_id)
         team = Team.objects.get(league=league, author=author)
@@ -1012,14 +1023,17 @@ def allTeams(request):
             'title': team.title,
             'rank': team.rank,
             'author': team.author.username,
+            'wins': team.wins,
+            'losses': team.losses,
+            'points_for': team.points_for,
+            'points_against': team.points_against,
         }
 
         for pos in position_fields:
             player_id = getattr(team, pos)
-            if player_id and player_id != "N/A":
+            if player_id and player_id != "N/A" and player_id != "" and player_id != "null":
                 player = Player.objects.get(id = player_id)
                 fullName = player.firstName + " " + player.lastName
-                print("player: ",player)
 
                 try:
                     stats = Player_Stats.objects.get(player=player, week = 1) # get most recent
@@ -1257,3 +1271,35 @@ class TeamDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Team.objects.all()
     serializer_class = TeamSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def execute_trade(request, League_id):
+    try:
+        body = request.data
+        user_players = body.get("userPlayers", {})
+        opponent_players = body.get("opponentPlayers", {})
+        opponent_team_id = body.get("opponentTeamId")
+        currency_offered = body.get("currencyOffered", 0)
+        currency_requested = body.get("currencyRequested", 0)
+
+        # Validate league and teams
+        league = League.objects.get(id=League_id)
+        user_team = Team.objects.get(league=league, author=request.user)
+        opponent_team = Team.objects.get(id=opponent_team_id, league=league)
+
+        # Validate trade
+        if not validate_trade(user_team, opponent_team, user_players, opponent_players, currency_offered, currency_requested):
+            return Response({"error": "Invalid trade. Ensure positional equivalence, valid players, and sufficient funds."}, status=400)
+
+        # Process trade in a transaction
+        with transaction.atomic():
+            process_trade(user_team, opponent_team, user_players, opponent_players, currency_offered, currency_requested)
+
+        return Response({"message": "Trade executed successfully!"}, status=200)
+    except League.DoesNotExist:
+        return Response({"error": "League not found."}, status=404)
+    except Team.DoesNotExist:
+        return Response({"error": "User or opponent team not found in this league."}, status=404)
+    except Exception as e:
+        return Response({"error": f"Internal server error: {str(e)}"}, status=500)

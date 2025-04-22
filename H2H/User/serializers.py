@@ -16,10 +16,16 @@ class NotificationSerializer(serializers.ModelSerializer):
         fields = ['id', 'message', 'link', 'is_read', 'created_at']
 
 
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = ['date_of_birth', 'profile_picture', 'currency']
+
 class UserSerializer(serializers.ModelSerializer):
+    profile = ProfileSerializer(read_only=True)  # Add the profile field
     class Meta:
         model = User
-        fields = ['id', 'username', 'password', 'email', 'first_name', 'last_name']
+        fields = ['id', 'username', 'password', 'email', 'first_name', 'last_name', 'profile']
         extra_kwargs = {'password': {'write_only': True}}
 
     def create(self, validated_data):
@@ -31,10 +37,7 @@ class UserSerializer(serializers.ModelSerializer):
             last_name=validated_data['last_name']
         )
         return user
-class ProfileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Profile
-        fields = ['date_of_birth', 'profile_picture', 'currency']
+
 
 class PlayerSerializer(serializers.ModelSerializer):
     proj_fantasy = serializers.SerializerMethodField()
@@ -97,7 +100,7 @@ class TeamSerializer(serializers.ModelSerializer):
     class Meta:
         model = Team
         fields = ['id', 'title', 'QB', 'RB1', 'RB2', 'WR1', 'WR2', 'TE', 'FLX', 'K', 'DEF', 
-                  'BN1', 'BN2', 'BN3', 'BN4', 'BN5', 'BN6', 'IR1', 'IR2', 'author', 'league', 'rank']
+                  'BN1', 'BN2', 'BN3', 'BN4', 'BN5', 'BN6', 'IR1', 'IR2', 'author', 'league', 'rank', 'wins', 'losses', 'points_for', 'points_against']
 
 class MatchupSerializer(serializers.ModelSerializer):
     team1 = UserSerializer(read_only=True)
@@ -118,6 +121,10 @@ class CustomTeamSerializer(serializers.Serializer):
     title = serializers.CharField()
     rank = serializers.IntegerField()
     author = serializers.CharField()
+    wins = serializers.IntegerField()
+    losses = serializers.IntegerField()
+    points_for = serializers.IntegerField()
+    points_against = serializers.IntegerField()
     QB = PlayerSlotSerializer(allow_null=True)
     RB1 = PlayerSlotSerializer(allow_null=True)
     RB2 = PlayerSlotSerializer(allow_null=True)
