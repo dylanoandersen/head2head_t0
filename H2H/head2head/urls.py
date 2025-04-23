@@ -83,6 +83,7 @@ urlpatterns = [
     path('api/league/<int:league_id>/matchup/<int:matchup_id>/verify/', user_views.verify_user_matchup, name='verify_user_matchup'),
     path('api/league/<int:league_id>/draft-picks/', user_views.get_draft_picks, name='get-draft-picks'),
     path("api/get-usernames/", user_views.get_usernames, name="get-usernames"),
+    path('api/league/<int:league_id>/team-positions/', user_views.get_team_positions, name='get_team_positions'),
 
 
     

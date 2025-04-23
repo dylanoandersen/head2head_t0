@@ -40,6 +40,40 @@ from .trade_processor import process_trade
 logger = logging.getLogger(__name__)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_team_positions(request, league_id):
+    try:
+        league = League.objects.get(id=league_id)
+        team = Team.objects.get(league=league, author=request.user)
+    except (League.DoesNotExist, Team.DoesNotExist):
+        return Response({"positions": {}}, status=status.HTTP_200_OK)
+
+    position_fields = [
+        "QB", "RB1", "RB2", "WR1", "WR2", "TE", "FLX", "K", "DEF",
+        "BN1", "BN2", "BN3", "BN4", "BN5", "BN6"
+    ]
+    positions = {}
+    for field in position_fields:
+        player_id = getattr(team, field, None)
+        if player_id and player_id != "N/A":
+            try:
+                player = Player.objects.get(id=player_id)
+                positions[field] = {
+                    "id": player.id,
+                    "firstName": player.firstName,
+                    "lastName": player.lastName,
+                    "position": field,
+                    "headshot": player.headshot,
+                }
+            except Player.DoesNotExist:
+                positions[field] = None
+        else:
+            positions[field] = None
+
+    return Response({"positions": positions}, status=status.HTTP_200_OK)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def get_usernames(request):
@@ -280,32 +314,23 @@ def get_bets_for_matchup(request, matchup_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_user_matchup(request, league_id):
-    print(f"[DEBUG] League ID: {league_id}, User: {request.user.username}")
     try:
-        # Get the current week
         current_week = Week.objects.first().week
-        print(f"[DEBUG] Current Week: {current_week}")
-
-        # Query the Matchup model directly
         matchup = Matchup.objects.filter(
             league_id=league_id,
             week=current_week
         ).filter(
             models.Q(team1_id=request.user.id) | models.Q(team2_id=request.user.id)
         ).first()
+        print(f"League ID: {league_id}, Current Week: {current_week}, User ID: {request.user.id}")
+        print(f"Matchup Query Result: {matchup}")
 
         if not matchup:
-            print(f"[DEBUG] No matchup found for user {request.user.id} in league {league_id}")
             return Response({"error": "No matchup found for the current user."}, status=status.HTTP_404_NOT_FOUND)
 
-        print(f"[DEBUG] Matchup Found: {matchup}")
-        return Response({"matchupId": matchup.id}, status=status.HTTP_200_OK)
 
-    except Week.DoesNotExist:
-        print("[ERROR] Current week not found.")
-        return Response({"error": "Current week not found."}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"matchupId": matchup.id}, status=status.HTTP_200_OK)
     except Exception as e:
-        print(f"[EXCEPTION] Unexpected error: {str(e)}")
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
@@ -770,9 +795,26 @@ def get_draft_picks(request, league_id):
         league = League.objects.get(id=league_id)
         draft = Draft.objects.get(league=league)
     except (League.DoesNotExist, Draft.DoesNotExist):
-        return Response({'error': 'League or draft not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "League or draft not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    return Response({'picks': draft.picks}, status=status.HTTP_200_OK)
+    # Enrich draft picks with player names
+    enriched_picks = []
+    for pick in draft.picks:
+        try:
+            player = Player.objects.get(id=pick['player_id'])
+            enriched_picks.append({
+                "user_id": pick['user_id'],
+                "player_name": f"{player.firstName} {player.lastName}",
+                "position": pick['position']
+            })
+        except Player.DoesNotExist:
+            enriched_picks.append({
+                "user_id": pick['user_id'],
+                "player_name": "Unknown Player",
+                "position": pick['position']
+            })
+
+    return Response({"picks": enriched_picks}, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])
