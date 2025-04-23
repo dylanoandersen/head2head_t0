@@ -895,10 +895,12 @@ class VerifyTokenView(APIView):
 
     def get(self, request, *args, **kwargs):
         try:
+            # Extract and validate token
             token = AccessToken(request.headers.get('Authorization').split()[1])
-            user = request.user
+            user = request.user  # This will work if token is valid and associated with a user
             return Response({'username': user.username}, status=200)
-        except (InvalidToken, TokenError) as e:
+        except TokenError as e:
+            # Handle invalid or expired tokens
             return Response({'error': str(e)}, status=401)
         
 @api_view(['GET'])
