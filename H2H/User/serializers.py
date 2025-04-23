@@ -108,7 +108,18 @@ class MatchupSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Matchup
-        fields = ['id','team1','team2','team1score', 'team2score']
+        fields = [
+            'id', 
+            'week', 
+            'team1score', 
+            'team2score', 
+            'league',  # Include the league as a nested serializer or primary key
+            'team1', 
+            'team2', 
+            'team1_id',  # Include raw IDs for team1 and team2
+            'team2_id', 
+            'position'  # Include the randomized position for betting
+        ]
 
 class PlayerSlotSerializer(serializers.Serializer):
     id = serializers.CharField()

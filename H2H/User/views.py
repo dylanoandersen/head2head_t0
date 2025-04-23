@@ -6,7 +6,7 @@ from django.forms.models import model_to_dict
 from django.shortcuts import render
 from datetime import datetime;
 from django.db import models  # Import models to fix "models is not defined"
-
+from decimal import Decimal
 
 from django.views.decorators.csrf import csrf_exempt
 
@@ -38,6 +38,40 @@ from channels.layers import get_channel_layer
 from .trade_processor import process_trade
 
 logger = logging.getLogger(__name__)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_team_positions(request, league_id):
+    try:
+        league = League.objects.get(id=league_id)
+        team = Team.objects.get(league=league, author=request.user)
+    except (League.DoesNotExist, Team.DoesNotExist):
+        return Response({"positions": {}}, status=status.HTTP_200_OK)
+
+    position_fields = [
+        "QB", "RB1", "RB2", "WR1", "WR2", "TE", "FLX", "K", "DEF",
+        "BN1", "BN2", "BN3", "BN4", "BN5", "BN6"
+    ]
+    positions = {}
+    for field in position_fields:
+        player_id = getattr(team, field, None)
+        if player_id and player_id != "N/A":
+            try:
+                player = Player.objects.get(id=player_id)
+                positions[field] = {
+                    "id": player.id,
+                    "firstName": player.firstName,
+                    "lastName": player.lastName,
+                    "position": field,
+                    "headshot": player.headshot,
+                }
+            except Player.DoesNotExist:
+                positions[field] = None
+        else:
+            positions[field] = None
+
+    return Response({"positions": positions}, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
@@ -145,10 +179,6 @@ def get_matchup_and_team(request, league_id, matchup_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_available_players_for_betting(request, matchup_id):
-    """
-    Returns the user's available players and the opponent's available players for betting.
-    Filters players based on the position specified in the matchup.
-    """
     try:
         # Fetch the matchup
         matchup = Matchup.objects.get(id=matchup_id)
@@ -184,7 +214,7 @@ def get_available_players_for_betting(request, matchup_id):
                     player = Player.objects.get(id=player_id)
                     user_players.append({
                         "id": player.id,
-                        "name": player.name,
+                        "name": f"{player.firstName} {player.lastName}",  # Fix here
                         "position": pos,
                     })
                 except Player.DoesNotExist:
@@ -199,7 +229,7 @@ def get_available_players_for_betting(request, matchup_id):
                     player = Player.objects.get(id=player_id)
                     opponent_players.append({
                         "id": player.id,
-                        "name": player.name,
+                        "name": f"{player.firstName} {player.lastName}",  # Fix here
                         "position": pos,
                     })
                 except Player.DoesNotExist:
@@ -210,10 +240,10 @@ def get_available_players_for_betting(request, matchup_id):
             "opponent_players": opponent_players,
         }, status=status.HTTP_200_OK)
 
-   # except Matchup.DoesNotExist:
-    #    return Response({"error": "Matchup not found."}, status=status.HTTP_404_NOT_FOUND)
-   # except Team.DoesNotExist:
-  #     return Response({"error": "Team not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Matchup.DoesNotExist:
+        return Response({"error": "Matchup not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found."}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         print(f"[ERROR] {str(e)}")  # Add logging
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -222,10 +252,12 @@ def get_available_players_for_betting(request, matchup_id):
 @permission_classes([IsAuthenticated])
 def place_bet(request, league_id, matchup_id):
     try:
+        # Fetch the matchup and validate the user
         matchup = Matchup.objects.get(id=matchup_id, league_id=league_id)
         if request.user.id not in [matchup.team1_id, matchup.team2_id]:
             return Response({"error": "Unauthorized access."}, status=status.HTTP_403_FORBIDDEN)
 
+        # Fetch the user's team
         team = Team.objects.get(league_id=league_id, author=request.user)
         player_id = request.data.get("player_id")
         amount = request.data.get("amount")
@@ -239,16 +271,20 @@ def place_bet(request, league_id, matchup_id):
             return Response({"error": f"Player position must match the weekly position: {matchup.position}."}, status=status.HTTP_400_BAD_REQUEST)
 
         # Ensure the user has enough currency
-        if team.author.profile.currency < amount:
+        if Decimal(team.author.profile.currency) < Decimal(amount):
             return Response({"error": "Insufficient currency."}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Ensure the user hasn't already placed a bet
+        if Bet.objects.filter(matchup=matchup, team=team).exists():
+            return Response({"error": "You have already placed a bet for this matchup."}, status=status.HTTP_400_BAD_REQUEST)
+
         # Deduct currency and create the bet
-        team.author.profile.currency -= amount
+        team.author.profile.currency = str(Decimal(team.author.profile.currency) - Decimal(amount))
         team.author.profile.save()
 
         Bet.objects.create(
             matchup=matchup,
-            league_id=league_id,
+            league=matchup.league,
             team=team,
             player_id=player_id,
             position=matchup.position,
@@ -277,35 +313,38 @@ def get_bets_for_matchup(request, matchup_id):
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_user_matchup(request, league_id):
-    print(f"[DEBUG] League ID: {league_id}, User: {request.user.username}")
     try:
-        # Get the current week
-        current_week = Week.objects.first().week
-        print(f"[DEBUG] Current Week: {current_week}")
+        logger.debug(f"Fetching matchup for league_id={league_id}, user_id={request.user.id}")
+        current_week = Week.objects.first().week if Week.objects.exists() else 1
+        logger.debug(f"Current week: {current_week}")
 
-        # Query the Matchup model directly
-        matchup = Matchup.objects.filter(
+        queryset = Matchup.objects.filter(
             league_id=league_id,
-            week=current_week
+            week=current_week,
         ).filter(
             models.Q(team1_id=request.user.id) | models.Q(team2_id=request.user.id)
-        ).first()
+        )
+        logger.debug(f"Queryset: {queryset.query}")
+        matchup = queryset.first()
 
         if not matchup:
-            print(f"[DEBUG] No matchup found for user {request.user.id} in league {league_id}")
-            return Response({"error": "No matchup found for the current user."}, status=status.HTTP_404_NOT_FOUND)
+            logger.warning(f"No matchup found for user_id={request.user.id} in league_id={league_id}")
+            return Response({
+                "error": "No matchup found for the current user.",
+                "league_id": league_id,
+                "user_id": request.user.id,
+                "current_week": current_week,
+            }, status=status.HTTP_404_NOT_FOUND)
 
-        print(f"[DEBUG] Matchup Found: {matchup}")
+        logger.info(f"Matchup found: {matchup.id}")
         return Response({"matchupId": matchup.id}, status=status.HTTP_200_OK)
 
-    except Week.DoesNotExist:
-        print("[ERROR] Current week not found.")
-        return Response({"error": "Current week not found."}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        print(f"[EXCEPTION] Unexpected error: {str(e)}")
+        logger.error(f"Error in get_user_matchup: {str(e)}")
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
@@ -321,51 +360,7 @@ def get_matchup(request, matchup_id):
 
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def place_bet(request, matchup_id):
-    try:
-        matchup = Matchup.objects.get(id=matchup_id)
-        league = matchup.league
-        team = Team.objects.get(league=league, author=request.user)
-        player_id = request.data.get("player_id")
-        amount = request.data.get("amount")
 
-        if not player_id or not amount:
-            return Response({"error": "Missing required fields."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Validate that the player belongs to the user's team
-        if not any(player_id == getattr(team, pos) for pos in ["QB", "RB1", "RB2", "WR1", "WR2", "TE", "FLX", "K", "DEF", "BN1", "BN2", "BN3", "BN4", "BN5", "BN6", "IR1", "IR2"]):
-            return Response({"error": "Player does not belong to your team."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Validate that the position matches the matchup's position
-        player_position = request.data.get("position")
-        if player_position != matchup.position:
-            return Response({"error": f"Player position must match the weekly position: {matchup.position}."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Ensure the user has enough currency
-        if team.author.profile.currency < amount:
-            return Response({"error": "Insufficient currency."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Ensure the user hasn't already placed a bet
-        if Bet.objects.filter(matchup=matchup, team=team).exists():
-            return Response({"error": "You have already placed a bet for this matchup."}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Deduct currency and create the bet
-        team.author.profile.currency -= amount
-        team.author.profile.save()
-
-        Bet.objects.create(
-            matchup=matchup,
-            league=league,
-            team=team,
-            player_id=player_id,
-            position=matchup.position,
-            amount=amount
-        )
-        return Response({"success": "Bet placed successfully."}, status=status.HTTP_201_CREATED)
-    except Exception as e:
-        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
     
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -770,9 +765,26 @@ def get_draft_picks(request, league_id):
         league = League.objects.get(id=league_id)
         draft = Draft.objects.get(league=league)
     except (League.DoesNotExist, Draft.DoesNotExist):
-        return Response({'error': 'League or draft not found'}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"error": "League or draft not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    return Response({'picks': draft.picks}, status=status.HTTP_200_OK)
+    # Enrich draft picks with player names
+    enriched_picks = []
+    for pick in draft.picks:
+        try:
+            player = Player.objects.get(id=pick['player_id'])
+            enriched_picks.append({
+                "user_id": pick['user_id'],
+                "player_name": f"{player.firstName} {player.lastName}",
+                "position": pick['position']
+            })
+        except Player.DoesNotExist:
+            enriched_picks.append({
+                "user_id": pick['user_id'],
+                "player_name": "Unknown Player",
+                "position": pick['position']
+            })
+
+    return Response({"picks": enriched_picks}, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 @permission_classes([AllowAny])

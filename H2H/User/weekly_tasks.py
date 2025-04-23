@@ -2,27 +2,43 @@ from datetime import datetime
 from django.db import transaction
 from User.models import Week, Bet, Matchup, Player_Stats
 
+from datetime import datetime
+from django.db import transaction
+from User.models import Week, Bet, Matchup, Player_Stats
+
 def weekly_update():
     today = datetime.now()
+    print(f"[DEBUG] Today is: {today}, Weekday: {today.weekday()}")
+
+    # Ensure the Week object exists
+    week_instance, created = Week.objects.get_or_create(id=1, defaults={"week": 1, "updated_on_wednesday": False})
+    print(f"[DEBUG] Week instance: {week_instance}, Created: {created}")
+
     if today.weekday() == 2:  # Wednesday
-        week_instance = Week.objects.first()
         if not week_instance.updated_on_wednesday:
+            print("[DEBUG] Updating week and setting updated_on_wednesday to True.")
             with transaction.atomic():
-                # Increment the week
                 week_instance.week += 1
                 week_instance.updated_on_wednesday = True
+                print(f"[DEBUG] Before save: updated_on_wednesday = {week_instance.updated_on_wednesday}")
                 week_instance.save()
+                week_instance.refresh_from_db()  # Ensure the object is reloaded
+                print(f"[DEBUG] After refresh: updated_on_wednesday = {week_instance.updated_on_wednesday}")
 
                 # Resolve bets
                 resolve_all_bets(week_instance.week)
-
+        else:
+            print("[DEBUG] Week already updated for this Wednesday.")
     else:
-        # Reset the flag on other days
-        week_instance = Week.objects.first()
         if week_instance.updated_on_wednesday:
+            print("[DEBUG] Resetting updated_on_wednesday to False.")
             week_instance.updated_on_wednesday = False
+            print(f"[DEBUG] Before save: updated_on_wednesday = {week_instance.updated_on_wednesday}")
             week_instance.save()
+            week_instance.refresh_from_db()  # Ensure the object is reloaded
+            print(f"[DEBUG] After refresh: updated_on_wednesday = {week_instance.updated_on_wednesday}")
 
+            
 def resolve_all_bets(current_week):
     bets = Bet.objects.filter(resolved=False, matchup__week=current_week)
     for bet in bets:
