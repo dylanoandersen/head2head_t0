@@ -84,9 +84,11 @@ urlpatterns = [
     path('api/league/<int:league_id>/draft-picks/', user_views.get_draft_picks, name='get-draft-picks'),
     path("api/get-usernames/", user_views.get_usernames, name="get-usernames"),
     path('api/league/<int:league_id>/team-positions/', user_views.get_team_positions, name='get_team_positions'),
+    path('api/leagues/<int:league_id>/trade-request/', user_views.create_trade_request, name='create_trade_request'),
+    path('api/trade-request/<int:trade_request_id>/respond/', user_views.respond_to_trade_request, name='respond_to_trade_request'),
+    path('api/leagues/<int:league_id>/trade-requests/', user_views.get_trade_requests, name='get_trade_requests'),
+    path('api/player/batch-info/', views.batch_player_info, name='batch_player_info'),
 
-
-    
 
 
 ]
