@@ -85,7 +85,9 @@ class DraftConsumer(AsyncWebsocketConsumer):
             return value in [None, 'N/A', 'NULL']
 
         # Assign the player to the appropriate position
-        if position == 'Quarterback' and is_position_empty(team.QB):
+        if position in ['Defense', 'DEF'] and is_position_empty(team.DEF):
+            team.DEF = player.id
+        elif position == 'Quarterback' and is_position_empty(team.QB):
             team.QB = player.id
         elif position == 'Running Back' and is_position_empty(team.RB1):
             team.RB1 = player.id
@@ -114,12 +116,31 @@ class DraftConsumer(AsyncWebsocketConsumer):
 
         # Save the team asynchronously
         await sync_to_async(team.save)()
-        print(f"Team after pick: QB={team.QB}, RB1={team.RB1}, RB2={team.RB2}, WR1={team.WR1}, WR2={team.WR2}, TE={team.TE}, FLX={team.FLX}, K={team.K}, Bench={team.BN1}, {team.BN2}, {team.BN3}, {team.BN4}, {team.BN5}, {team.BN6}")  # Debugging log
+        print(f"Team after pick: QB={team.QB}, RB1={team.RB1}, RB2={team.RB2}, WR1={team.WR1}, WR2={team.WR2}, TE={team.TE}, FLX={team.FLX}, K={team.K}, DEF={team.DEF}, Bench={team.BN1}, {team.BN2}, {team.BN3}, {team.BN4}, {team.BN5}, {team.BN6}")  # Debugging log
 
         # Add the pick to the draft
         draft.picks.append({'user_id': user_id, 'player_id': player_id, 'position': position})
         draft.current_pick += 1
         await sync_to_async(draft.save)()
+
+        updated_positions = {
+            "QB": team.QB,
+            "RB1": team.RB1,
+            "RB2": team.RB2,
+            "WR1": team.WR1,
+            "WR2": team.WR2,
+            "TE": team.TE,
+            "FLX": team.FLX,
+            "K": team.K,
+            "DEF": team.DEF,
+            "BN1": team.BN1,
+            "BN2": team.BN2,
+            "BN3": team.BN3,
+            "BN4": team.BN4,
+            "BN5": team.BN5,
+            "BN6": team.BN6,
+        }
+
 
         print(f"Next user ID: {draft.get_next_pick()}")  # Debugging log
 
@@ -135,6 +156,8 @@ class DraftConsumer(AsyncWebsocketConsumer):
                     'position': position,
                     'player_name': f"{player.firstName} {player.lastName}",
                     'next_user_id': draft.get_next_pick(),
+                    'updated_positions': updated_positions,  # Include updated positions
+
                 }
             }
         )
@@ -154,6 +177,7 @@ class DraftConsumer(AsyncWebsocketConsumer):
             team.TE not in [None, 'N/A', 'NULL'] and
             team.FLX not in [None, 'N/A', 'NULL'] and
             team.K not in [None, 'N/A', 'NULL'] and
+            team.DEF not in [None, 'N/A', 'NULL'] and
             all(getattr(team, f'BN{i}') not in [None, 'N/A', 'NULL'] for i in range(1, 7))
             for team in all_teams
         )
