@@ -12,7 +12,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from all_players.models import Player, Player_Stats
 
-from .models import Profile, League, Team, Draft, Notification, Invite, Matchup, Bet, Week
+from .models import Profile, League, Team, Draft, Notification, Invite, Matchup, Bet, Week, TradeRequest
 
 from .helpers import validate_trade
 
@@ -38,6 +38,244 @@ from channels.layers import get_channel_layer
 from .trade_processor import process_trade
 
 logger = logging.getLogger(__name__)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_trade_requests(request, league_id):
+    try:
+        # Fetch the league and the user's team
+        league = League.objects.get(id=league_id)
+        user_team = Team.objects.get(league=league, author=request.user)
+
+        # Fetch trade requests for the user's team
+        trade_requests = TradeRequest.objects.filter(receiver_team=user_team)
+
+        # Collect all player IDs from sender and receiver players
+        player_ids = set()
+        for tr in trade_requests:
+            for value in tr.sender_players.values():
+                if isinstance(value, list):  # Flatten lists
+                    player_ids.update(value)
+                else:
+                    player_ids.add(value)
+            for value in tr.receiver_players.values():
+                if isinstance(value, list):  # Flatten lists
+                    player_ids.update(value)
+                else:
+                    player_ids.add(value)
+
+        # Fetch player details from the Player model
+        players = Player.objects.filter(id__in=player_ids)
+        player_map = {
+            str(player.id): {
+                "name": f"{player.firstName} {player.lastName}",
+                "position": player.position
+            }
+            for player in players
+        }
+
+        # Build the trade requests response
+        trade_requests_data = [
+            {
+                "id": tr.id,
+                "sender_team": {
+                    "title": tr.sender_team.title,
+                    "author": {"username": tr.sender_team.author.username},
+                },
+                "receiver_team": {"title": tr.receiver_team.title},
+                "sender_players": {
+                    pos: {
+                        "id": pid,
+                        "name": player_map.get(str(pid), {}).get("name", "Unknown"),
+                        "position": player_map.get(str(pid), {}).get("position", "Unknown"),
+                    }
+                    for pos, pid in tr.sender_players.items()
+                },
+                "receiver_players": {
+                    pos: {
+                        "id": pid,
+                        "name": player_map.get(str(pid), {}).get("name", "Unknown"),
+                        "position": player_map.get(str(pid), {}).get("position", "Unknown"),
+                    }
+                    for pos, pid in tr.receiver_players.items()
+                },
+                "currency_offered": tr.currency_offered,
+                "currency_requested": tr.currency_requested,
+                "status": tr.status,
+                "created_at": tr.created_at,
+            }
+            for tr in trade_requests
+        ]
+
+        return Response(trade_requests_data, status=status.HTTP_200_OK)
+
+    except League.DoesNotExist:
+        return Response({"error": "League not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": f"Internal server error: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+    
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def respond_to_trade_request(request, trade_request_id):
+    try:
+        trade_request = TradeRequest.objects.get(id=trade_request_id)
+        if request.user != trade_request.receiver_team.author:
+            return Response({"error": "You are not authorized to respond to this trade request."}, status=status.HTTP_403_FORBIDDEN)
+
+        response = request.data.get("response")
+        if response == "accept":
+            # Validate positions
+            sender_positions = list(trade_request.sender_players.keys())
+            receiver_positions = list(trade_request.receiver_players.keys())
+
+            if len(sender_positions) != 1 or len(receiver_positions) != 1:
+                return Response({"error": "Invalid trade request. Only one player per position can be traded."}, status=status.HTTP_400_BAD_REQUEST)
+
+            sender_position = sender_positions[0]
+            receiver_position = receiver_positions[0]
+
+            # Allow trades between WR1 and WR2, RB1 and RB2, and Bench players
+            valid_trades = {
+                "WR1": ["WR2", "WR1"],
+                "WR2": ["WR1", "WR2"],
+                "RB1": ["RB2", "RB1"],
+                "RB2": ["RB1", "RB2"],
+                "BN1": ["BN2", "BN3", "BN4", "BN5", "BN6"],
+                "BN2": ["BN1", "BN3", "BN4", "BN5", "BN6"],
+                "BN3": ["BN1", "BN2", "BN4", "BN5", "BN6"],
+                "BN4": ["BN1", "BN2", "BN3", "BN5", "BN6"],
+                "BN5": ["BN1", "BN2", "BN3", "BN4", "BN6"],
+                "BN6": ["BN1", "BN2", "BN3", "BN4", "BN5"],
+                "TE": ["TE"],
+                "QB": ["QB"],
+                "K": ["K"],
+                "DEF": ["DEF"],
+                "FLX": ["FLX"],
+         }
+
+
+            if sender_position != receiver_position and receiver_position not in valid_trades.get(sender_position, []):
+                return Response({"error": "Players must be of the same position or valid interchangeable positions to trade."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Execute the trade
+            process_trade(
+                trade_request.sender_team,
+                trade_request.receiver_team,
+                trade_request.sender_players,
+                trade_request.receiver_players,
+                trade_request.currency_offered,
+                trade_request.currency_requested,
+            )
+            trade_request.status = "accepted"
+            trade_request.save()
+
+            # Notify the sender
+            Notification.objects.create(
+                user=trade_request.sender_team.author,
+                message=f"Your trade request to {trade_request.receiver_team.title} has been accepted.",
+            )
+
+        elif response == "reject":
+            trade_request.status = "rejected"
+            trade_request.save()
+
+            # Notify the sender
+            Notification.objects.create(
+                user=trade_request.sender_team.author,
+                message=f"Your trade request to {trade_request.receiver_team.title} has been rejected.",
+            )
+
+        return Response({"success": f"Trade request {response}ed successfully."}, status=status.HTTP_200_OK)
+
+    except TradeRequest.DoesNotExist:
+        return Response({"error": "Trade request not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_trade_request(request, league_id):
+    try:
+        league = League.objects.get(id=league_id)
+        sender_team = Team.objects.get(league=league, author=request.user)
+        receiver_team_id = request.data.get("receiver_team_id")
+        receiver_team = Team.objects.get(id=receiver_team_id, league=league)
+
+        sender_players = request.data.get("sender_players", {})
+        receiver_players = request.data.get("receiver_players", {})
+        currency_offered = Decimal(request.data.get("currency_offered", 0))
+        currency_requested = Decimal(request.data.get("currency_requested", 0))
+
+      
+
+        # Validate positions
+        sender_positions = list(sender_players.keys())
+        receiver_positions = list(receiver_players.keys())
+        if len(sender_positions) != 1 or len(receiver_positions) != 1:
+            return Response({"error": "You must select exactly one player from each team."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        
+        sender_position = sender_positions[0]
+        receiver_position = receiver_positions[0]
+
+
+        # Allow trades between WR1 and WR2, RB1 and RB2, and Bench players
+        valid_trades = {
+            "WR1": ["WR2", "WR1"],
+            "WR2": ["WR1", "WR2"],
+            "RB1": ["RB2", "RB1"],
+            "RB2": ["RB1", "RB2"],
+            "BN1": ["BN2", "BN3", "BN4", "BN5", "BN6"],
+            "BN2": ["BN1", "BN3", "BN4", "BN5", "BN6"],
+            "BN3": ["BN1", "BN2", "BN4", "BN5", "BN6"],
+            "BN4": ["BN1", "BN2", "BN3", "BN5", "BN6"],
+            "BN5": ["BN1", "BN2", "BN3", "BN4", "BN6"],
+            "BN6": ["BN1", "BN2", "BN3", "BN4", "BN5"],
+            "TE": ["TE"],
+            "QB": ["QB"],
+            "K": ["K"],
+            "DEF": ["DEF"],
+            "FLX": ["FLX"],
+        }
+
+
+        
+        print(f"Sender Position: {sender_position}, Receiver Position: {receiver_position}")
+        print(f"Valid Trades for {sender_position}: {valid_trades.get(sender_position, [])}")
+        
+
+        # Check if positions are valid for trade
+        if sender_position != receiver_position and receiver_position not in valid_trades.get(sender_position, []):
+            return Response({"error": "Players must be of the same position or valid interchangeable positions to trade."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Create the trade request
+        trade_request = TradeRequest.objects.create(
+            league=league,
+            sender_team=sender_team,
+            receiver_team=receiver_team,
+            sender_players=sender_players,
+            receiver_players=receiver_players,
+            currency_offered=currency_offered,
+            currency_requested=currency_requested,
+        )
+
+        # Notify the receiver
+        Notification.objects.create(
+            user=receiver_team.author,
+            message=f"You have received a trade request from {sender_team.title}.",
+            link=f"/leagues/{league_id}/trade-requests/"
+        )
+
+        return Response({"success": "Trade request created successfully."}, status=status.HTTP_201_CREATED)
+
+    except League.DoesNotExist:
+        return Response({"error": "League not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Team.DoesNotExist:
+        return Response({"error": "Team not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])

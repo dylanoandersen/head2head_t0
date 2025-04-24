@@ -66,6 +66,22 @@ class Invite(models.Model):
     def __str__(self):
         return f"Invite to {self.league.name} for {self.invited_user.username} by {self.invited_by.username}"
 
+class Matchup(models.Model):
+    league = models.ForeignKey(League, on_delete=models.CASCADE)
+    week = models.IntegerField(default=0)
+    
+    team1 = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='matchups_as_team1'
+    )
+    team2 = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name='matchups_as_team2'
+    )
+    
+    team1score = models.DecimalField(max_digits=5, decimal_places=2)
+    team2score = models.DecimalField(max_digits=5, decimal_places=2)
+    position = models.CharField(max_length=50, null=True, blank=True)  # Randomized position for betting
+
+
 
 class Team(models.Model):
     title = models.CharField(max_length=100, default='N/A', blank=True)
@@ -115,20 +131,6 @@ class Draft(models.Model):
 
         return self.draft_order[index_in_round]
 
-class Matchup(models.Model):
-    league = models.ForeignKey(League, on_delete=models.CASCADE)
-    week = models.IntegerField(default=0)
-    
-    team1 = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='matchups_as_team1'
-    )
-    team2 = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name='matchups_as_team2'
-    )
-    
-    team1score = models.DecimalField(max_digits=5, decimal_places=2)
-    team2score = models.DecimalField(max_digits=5, decimal_places=2)
-    position = models.CharField(max_length=50, null=True, blank=True)  # Randomized position for betting
 
 
 class Week(models.Model):
@@ -149,3 +151,15 @@ class Bet(models.Model):
 
     def __str__(self):
         return f"Bet by {self.team} on {self.player} for {self.amount} in {self.matchup}"    
+    
+
+class TradeRequest(models.Model):
+    league = models.ForeignKey(League, on_delete=models.CASCADE, related_name="trade_requests")
+    sender_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="sent_trades")
+    receiver_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="received_trades")
+    sender_players = models.JSONField()
+    receiver_players = models.JSONField()
+    currency_offered = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    currency_requested = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    status = models.CharField(max_length=20, choices=[("pending", "Pending"), ("accepted", "Accepted"), ("rejected", "Rejected")], default="pending")
+    created_at = models.DateTimeField(auto_now_add=True)

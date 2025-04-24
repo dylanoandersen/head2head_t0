@@ -14,6 +14,27 @@ from django.db.models import Q
 from django.core.paginator import Paginator  # For pagination
 
 @api_view(['GET'])
+def batch_player_info(request):
+    """
+    Fetch multiple players by their IDs.
+    """
+    try:
+        ids = request.query_params.getlist('ids[]')  # Accept `ids[]` as query parameter
+        if not ids:
+            return Response({"error": "No player IDs provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        players = Player.objects.filter(pk__in=ids)
+        if not players.exists():
+            return Response({"error": "No players found for the provided IDs."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = PlayerInfoSerializer(players, many=True)
+        return Response({"Players": serializer.data}, status=status.HTTP_200_OK)
+
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+@api_view(['GET'])
 def week(request):
     current_week = Week.objects.get(id=1).week
     return Response({"week": current_week})
