@@ -30,7 +30,7 @@ SECRET_KEY = 'django-insecure-y&3esl@5u3d!a=e_w2wky^evwtxd$tafyg5)rj5_mh^_(vy_+$
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ["*", "https://3b33-2601-249-1902-b560-a521-20c1-178b-9dc3.ngrok-free.app", "3b33-2601-249-1902-b560-a521-20c1-178b-9dc3.ngrok-free.app", 'http://localhost:5173', 'localhost:5173']
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -79,8 +79,8 @@ CHANNEL_LAYERS = {
 
 # allows django to talk to this address. Local for now.
 CORS_ALLOW_ALL_ORIGINS = True
-CSRF_TRUSTED_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173']
-#CORS_ALLOWED_ORIGINS = ['http://localhost:5173']
+CSRF_TRUSTED_ORIGINS = ['*','http:127.0.0.:5173','http://localhost:5173', 'https://3b33-2601-249-1902-b560-a521-20c1-178b-9dc3.ngrok-free.app', '3b33-2601-249-1902-b560-a521-20c1-178b-9dc3.ngrok-free.app']
+CORS_ALLOWED_ORIGINS = ['*','http:127.0.0.:5173','http://localhost:5173', 'https://3b33-2601-249-1902-b560-a521-20c1-178b-9dc3.ngrok-free.app', '3b33-2601-249-1902-b560-a521-20c1-178b-9dc3.ngrok-free.app']
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
