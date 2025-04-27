@@ -21,6 +21,9 @@ import os
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+# Base URL for the backend
+BASE_URL = os.getenv("BASE_URL", "http://10.0.0.188:8000")  # Default to localhost if not set
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
@@ -30,7 +33,7 @@ SECRET_KEY = 'django-insecure-y&3esl@5u3d!a=e_w2wky^evwtxd$tafyg5)rj5_mh^_(vy_+$
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["*"]
+ALLOWED_HOSTS = ["*", BASE_URL.replace("http://", ""), BASE_URL.replace("https://", "")]
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -79,8 +82,15 @@ CHANNEL_LAYERS = {
 
 # allows django to talk to this address. Local for now.
 CORS_ALLOW_ALL_ORIGINS = True
-CSRF_TRUSTED_ORIGINS = ['http://localhost:5173', 'http://127.0.0.1:5173']
-#CORS_ALLOWED_ORIGINS = ['http://localhost:5173']
+CSRF_TRUSTED_ORIGINS = [
+    f"{BASE_URL}",  # Frontend URL
+    "http://localhost:5173",  # Local development
+]
+
+CORS_ALLOWED_ORIGINS = [
+    f"{BASE_URL}",  # Frontend URL
+    "http://localhost:5173",  # Local development
+]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
