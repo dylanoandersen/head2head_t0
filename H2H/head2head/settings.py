@@ -79,9 +79,14 @@ CHANNEL_LAYERS = {
 
 # allows django to talk to this address. Local for now.
 CORS_ALLOW_ALL_ORIGINS = True
-CSRF_TRUSTED_ORIGINS = ['*','http:127.0.0.:5173','http://localhost:5173', 'https://3b33-2601-249-1902-b560-a521-20c1-178b-9dc3.ngrok-free.app', '3b33-2601-249-1902-b560-a521-20c1-178b-9dc3.ngrok-free.app']
-CORS_ALLOWED_ORIGINS = ['*','http:127.0.0.:5173','http://localhost:5173', 'https://3b33-2601-249-1902-b560-a521-20c1-178b-9dc3.ngrok-free.app', '3b33-2601-249-1902-b560-a521-20c1-178b-9dc3.ngrok-free.app']
-
+CSRF_TRUSTED_ORIGINS = [
+    "http://10.0.0.188:5173",  # Frontend URL
+    "http://localhost:5173",   # Local development
+]
+CORS_ALLOWED_ORIGINS = [
+    "http://10.0.0.188:5173",  # Frontend URL
+    "http://localhost:5173",   # Local development
+]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
