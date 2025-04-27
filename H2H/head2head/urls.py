@@ -88,6 +88,7 @@ urlpatterns = [
     path('api/trade-request/<int:trade_request_id>/respond/', user_views.respond_to_trade_request, name='respond_to_trade_request'),
     path('api/leagues/<int:league_id>/trade-requests/', user_views.get_trade_requests, name='get_trade_requests'),
     path('api/player/batch-info/', views.batch_player_info, name='batch_player_info'),
+    path('api/leagues/<int:league_id>/users-and-teams/', user_views.get_users_and_teams, name='get_users_and_teams'),
 
 
 

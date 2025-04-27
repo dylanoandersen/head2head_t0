@@ -38,6 +38,64 @@ from channels.layers import get_channel_layer
 from .trade_processor import process_trade
 
 logger = logging.getLogger(__name__)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_users_and_teams(request, league_id):
+    try:
+        # Fetch the league
+        league = League.objects.get(id=league_id)
+
+        # Fetch all users in the league
+        users = league.users.all()
+
+        # Prepare the response data
+        data = []
+        for user in users:
+            # Try to fetch the user's team in the league
+            try:
+                team = Team.objects.get(league=league, author=user)
+                team_data = {
+                    "team_title": team.title,
+                    "players": {
+                        "QB": team.QB,
+                        "RB1": team.RB1,
+                        "RB2": team.RB2,
+                        "WR1": team.WR1,
+                        "WR2": team.WR2,
+                        "TE": team.TE,
+                        "FLX": team.FLX,
+                        "K": team.K,
+                        "DEF": team.DEF,
+                        "BN1": team.BN1,
+                        "BN2": team.BN2,
+                        "BN3": team.BN3,
+                        "BN4": team.BN4,
+                        "BN5": team.BN5,
+                        "BN6": team.BN6,
+                        "IR1": team.IR1,
+                        "IR2": team.IR2,
+                    },
+                }
+            except Team.DoesNotExist:
+                team_data = None
+
+            # Add user and team data to the response
+            data.append({
+                "user_id": user.id,
+                "username": user.username,
+                "team": team_data,
+            })
+
+        return Response(data, status=status.HTTP_200_OK)
+
+    except League.DoesNotExist:
+        return Response({"error": "League not found."}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_trade_requests(request, league_id):
@@ -1248,6 +1306,10 @@ def leagueMatchups(request):
 
     serializer = MatchupSerializer(matchups, many = True)
     return Response(serializer.data)
+
+
+
+
 
 @api_view(['GET'])
 @permission_classes([permissions.IsAuthenticated])
