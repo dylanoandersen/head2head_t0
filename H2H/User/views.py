@@ -222,10 +222,10 @@ def respond_to_trade_request(request, trade_request_id):
             sender_player_id = list(trade_request.sender_players.values())[0]
             receiver_player_id = list(trade_request.receiver_players.values())[0]
 
-            if not any(getattr(sender_team, field) == sender_player_id for field in sender_team._meta.fields if field.name.startswith("QB") or field.name.startswith("RB") or field.name.startswith("WR") or field.name.startswith("BN")):
+            if not any(getattr(sender_team, field.name) == sender_player_id for field in sender_team._meta.fields if field.name.startswith(("QB", "RB", "WR", "BN"))):
                 return Response({"error": "Sender no longer owns the player being traded."}, status=status.HTTP_400_BAD_REQUEST)
 
-            if not any(getattr(receiver_team, field) == receiver_player_id for field in receiver_team._meta.fields if field.name.startswith("QB") or field.name.startswith("RB") or field.name.startswith("WR") or field.name.startswith("BN")):
+            if not any(getattr(receiver_team, field.name) == receiver_player_id for field in receiver_team._meta.fields if field.name.startswith(("QB", "RB", "WR", "BN"))):
                 return Response({"error": "Receiver no longer owns the player being traded."}, status=status.HTTP_400_BAD_REQUEST)
 
             # Execute the trade
@@ -262,7 +262,7 @@ def respond_to_trade_request(request, trade_request_id):
         return Response({"error": "Trade request not found."}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
+    
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def create_trade_request(request, league_id):
