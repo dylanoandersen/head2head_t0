@@ -322,3 +322,90 @@ def weekly_update():
         for index, team in enumerate(teams, start=1):
             team.rank = index
             team.save(update_fields=['rank']) 
+
+def matchUp_creation(lid):
+    print('Creating matchups...')
+    league = League.objects.get(id = lid)
+    users = list(league.users.all())
+    username = [user.username for user in users]
+    print(username)
+    if len(username) % 2 != 0:
+        username.append(None)  # None represents a bye
+
+    # Generate all unique unordered matchups
+    all_matchups = list(itertools.combinations(username, 2))
+    random.shuffle(all_matchups)
+
+    used_matchups = set()
+    rounds = []
+    positions = ["QB", "RB1", "RB2", "WR1", "WR2", "TE", "FLX", "K", "DEF"]
+
+
+    while len(rounds) < 15:
+        current_round = []
+        players_used = set()
+
+        for p1, p2 in all_matchups:
+            match = tuple(sorted((p1, p2)))  # canonical form for unordered
+
+            if match in used_matchups:
+                continue
+            if p1 in players_used or p2 in players_used:
+                continue
+
+            used_matchups.add(match)
+            current_round.append(match)
+            players_used.update([p for p in (p1,p2) if p is not None])
+
+            if len(current_round) == len(username) // 2:
+                break  # round is full
+
+        if current_round:
+            rounds.append(current_round)
+
+        # If all matchups are exhausted, reshuffle and start reusing
+        if len(used_matchups) == len(all_matchups):
+            used_matchups = set()
+            random.shuffle(all_matchups)
+
+    # Save matchups to DB
+    print(rounds)
+    for week_num, week in enumerate(rounds, 1):
+        for team1_id, team2_id in week:
+            print('team1: ',team1_id,'team2: ', team2_id)
+            # Handle bye matchups
+            if team1_id is None or team2_id is None:
+                real_team_id = team1_id or team2_id
+                real_team = (User.objects.get(id=real_team_id))
+                random_position = random.choice(positions)
+
+
+                models.Matchup.objects.update_or_create(
+                    league=league,
+                    week=week_num,
+                    team1=real_team,
+                    team2=None,  # or a special ByeUser if your model requires it
+                    defaults={
+                        'team1score': 0,
+                        'team2score': 0,
+                        'position': random.choice(["QB", "RB", "WR", "TE", "K"])  # Assign random position
+
+                        # maybe include 'is_bye': True if you track it
+                    }
+                )
+            else:
+                team1 = User.objects.get(username=team1_id)
+                team2 = User.objects.get(username=team2_id)
+
+                models.Matchup.objects.update_or_create(
+                    league=league,
+                    week=week_num,
+                    team1=team1,
+                    team2=team2,
+                    defaults={
+                        'team1score': 0,
+                        'team2score': 0,
+                        'position': random.choice(["QB", "RB", "WR", "TE", "K"])  # Assign random position
+
+                    }
+                )

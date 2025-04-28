@@ -619,7 +619,25 @@ def get_bets_for_matchup(request, matchup_id):
     except Exception as e:
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+# Home page matchup display
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_allMatchups_perUserLeague(request):
+    try:
+        lst = []
+        print('user:', request.user)
+        leagues = League.objects.filter(users=request.user)
+        for league in leagues:
+            print('league:', league.id)
+            lst.append(league.id)
+        matchups = Matchup.objects.filter(league_id__in=lst)
+        print(matchups)
 
+        serializer = MatchupSerializer(matchups, many=True)
+        return Response(serializer.data)
+
+    except Matchup.DoesNotExist:
+        return Response({"error": "Matchup not found."}, status=status.HTTP_404_NOT_FOUND)
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -663,11 +681,6 @@ def get_matchup(request, matchup_id):
         return Response(serializer.data, status=status.HTTP_200_OK)
     except Matchup.DoesNotExist:
         return Response({"error": "Matchup not found."}, status=status.HTTP_404_NOT_FOUND)
-
-
-
-
-
     
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -1193,7 +1206,8 @@ def myPlayers(request):
         try:
             currentP = Player.objects.get(id=id)
             try:
-                latest = Player_Stats.objects.get(player=currentP, week=1)
+                w = Week.objects.get(id=1).week
+                latest = Player_Stats.objects.get(player=currentP, week=w)
                 setattr(currentP, 'proj_fantasy', latest.proj_fantasy)  # Attach to Player object
                 setattr(currentP, 'total_fantasy_points', latest.total_fantasy_points)  # Attach to Player object
                 setattr(currentP, 'pass_yards', latest.pass_yards)
@@ -1286,7 +1300,8 @@ def TradeInfo(request, LID):
 def leagueMatchups(request):
     members = request.GET.get("members", "")
     member_ids = [int(x) for x in members.split(",") if x.strip()]
-    weekly = Matchup.objects.filter(week = 1)
+    w = Week.objects.get(id=1).week
+    weekly = Matchup.objects.filter(week = w)
     matchups = []
     for m in weekly:
         if m.team1.id in member_ids and m.team2.id in member_ids:
@@ -1338,7 +1353,8 @@ def allTeams(request):
                 fullName = player.firstName + " " + player.lastName
 
                 try:
-                    stats = Player_Stats.objects.get(player=player, week = 1) # get most recent
+                    w = Week.objects.get(id=1).week
+                    stats = Player_Stats.objects.get(player=player, week = w)
                     team_data[pos] = {
                         'id': player_id,
                         'fullName': fullName,

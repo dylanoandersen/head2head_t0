@@ -103,23 +103,30 @@ class TeamSerializer(serializers.ModelSerializer):
                   'BN1', 'BN2', 'BN3', 'BN4', 'BN5', 'BN6', 'IR1', 'IR2', 'author', 'league', 'rank', 'wins', 'losses', 'points_for', 'points_against']
 
 class MatchupSerializer(serializers.ModelSerializer):
-    team1 = UserSerializer(read_only=True)
-    team2 = UserSerializer(read_only=True)
+    team1_username = serializers.SerializerMethodField()
+    team2_username = serializers.SerializerMethodField()
+    league_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Matchup
         fields = [
-            'id', 
-            'week', 
-            'team1score', 
-            'team2score', 
-            'league',  # Include the league as a nested serializer or primary key
-            'team1', 
-            'team2', 
-            'team1_id',  # Include raw IDs for team1 and team2
-            'team2_id', 
-            'position'  # Include the randomized position for betting
+            'id',
+            'week',
+            'team1score',
+            'team2score',
+            'team1_username',
+            'team2_username',
+            'league_name',
         ]
+
+    def get_team1_username(self, obj):
+        return obj.team1.username
+
+    def get_team2_username(self, obj):
+        return obj.team2.username
+
+    def get_league_name(self, obj):
+        return obj.league.name
 
 class PlayerSlotSerializer(serializers.Serializer):
     id = serializers.CharField()

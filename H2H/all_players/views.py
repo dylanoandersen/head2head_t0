@@ -48,17 +48,6 @@ def allPlayer(request):
     else:
         print('Could not grab all players')
 
-# @api_view(['GET'])
-# def player_info(request,id):
-#     try:
-#         player = Player.objects.get(pk=id)
-#     except Player.DoesNotExist:
-#         return Response(status=status.HTTP_404_NOT_FOUND)
-#
-#     if request.method == 'GET':
-#         serializer = PlayerInfoSerializer(player)
-#         return Response({"Player": serializer.data})
-
 @api_view(['GET'])
 def player_info(request, id=None):
     """
@@ -102,7 +91,10 @@ def player_stats(request,id):
 @api_view(['GET'])
 def player_news(request,id):
     try:
-        player_news = Player_News.objects.filter(player=id)
+        if id == 99:
+            player_news = Player_News.objects.all()
+        else:
+            player_news = Player_News.objects.filter(player=id)
     except Player.DoesNotExist:
         return Response(status=status.HTTP_404_NOT_FOUND)
 

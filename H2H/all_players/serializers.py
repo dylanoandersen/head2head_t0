@@ -4,7 +4,6 @@ from django.contrib.auth.models import User
 from rest_framework.exceptions import ValidationError
 
 
-
 class PlayerStatsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Player_Stats
