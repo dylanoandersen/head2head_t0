@@ -11,7 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models import Q
-from django.core.paginator import Paginator  # For pagination
+from django.core.paginator import Paginator
 
 @api_view(['GET'])
 def batch_player_info(request):
@@ -19,7 +19,7 @@ def batch_player_info(request):
     Fetch multiple players by their IDs.
     """
     try:
-        ids = request.query_params.getlist('ids[]')  # Accept `ids[]` as query parameter
+        ids = request.query_params.getlist('ids[]') 
         if not ids:
             return Response({"error": "No player IDs provided."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -56,8 +56,7 @@ def player_info(request, id=None):
     - If `ids` query parameter is provided, retrieves a batch of players.
     """
     try:
-        # Check if batch request
-        ids = request.query_params.getlist('ids')  # Get batch IDs from query parameters
+        ids = request.query_params.getlist('ids') 
         if ids:
             players = Player.objects.filter(pk__in=ids)
             if not players.exists():
@@ -65,13 +64,11 @@ def player_info(request, id=None):
             serializer = PlayerInfoSerializer(players, many=True)
             return Response({"Players": serializer.data})
 
-        # Single player request
         if id is not None:
             player = Player.objects.get(pk=id)
             serializer = PlayerInfoSerializer(player)
             return Response({"Player": serializer.data})
 
-        # If neither `id` nor `ids` is provided
         return Response({"error": "No player ID or batch IDs provided."}, status=status.HTTP_400_BAD_REQUEST)
 
     except Player.DoesNotExist:
@@ -105,25 +102,21 @@ def player_news(request,id):
 
 @api_view(['POST'])
 def topTenPlayers(request):
-    search_query = request.data.get("name", "").strip()  # Get search term from request data
+    search_query = request.data.get("name", "").strip()
 
     if search_query:
-        # Split search query into words
         name_parts = search_query.split()
         
         if len(name_parts) == 2:
-            # If two words (assume first and last name)
             first_name, last_name = name_parts
             players = Player.objects.filter(
                 Q(firstName__icontains=first_name) & Q(lastName__icontains=last_name)
             ).order_by('-yearly_proj')[:10]
         else:
-            # If single word, search both first and last name fields
             players = Player.objects.filter(
                 Q(firstName__icontains=search_query) | Q(lastName__icontains=search_query)
             ).order_by('-yearly_proj')[:10]
     else:
-        # If no search term, return top 10 yearly projected players
         players = Player.objects.all().order_by('-yearly_proj')[:10]
 
     serializer = PlayerInfoSerializer(players, many=True)
@@ -132,16 +125,15 @@ def topTenPlayers(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def search_player(request):
-    search_query = request.GET.get("name", "").strip()  # Search by name
-    team_query = request.GET.get("team", "").strip()  # Filter by team
-    position_query = request.GET.get("position", "").strip()  # Filter by position
-    status_query = request.GET.get("status", "").strip()  # Filter by status
-    page = int(request.GET.get("page", 1))  # Pagination
-    players_per_page = 10  # Players per page
+    search_query = request.GET.get("name", "").strip()
+    team_query = request.GET.get("team", "").strip()
+    position_query = request.GET.get("position", "").strip()
+    status_query = request.GET.get("status", "").strip()
+    page = int(request.GET.get("page", 1))
+    players_per_page = 10
 
     players = Player.objects.all()
 
-    # Apply filters
     if search_query:
         name_parts = search_query.split()
         if len(name_parts) == 2:
@@ -162,7 +154,6 @@ def search_player(request):
 
     players = players.order_by("-yearly_proj")
 
-    # Paginate results
     paginator = Paginator(players, players_per_page)
     paginated_players = paginator.get_page(page)
 

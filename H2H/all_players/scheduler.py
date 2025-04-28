@@ -9,50 +9,45 @@ scheduler = BackgroundScheduler()
 
 def start_scheduler():
     """Starts the scheduler, ensuring no duplicate jobs run."""
-    print("🔄 Starting Scheduler...")
+    print(" Starting Scheduler...")
 
-    # Run daily task once when server starts
     daily_task_wrapper()
 
-    # Add Live Update Job (once every 24 hours)
     if not scheduler.get_job("live_update"):
         scheduler.add_job(
-            live_update_wrapper,  # Wrapper function to handle the live update
+            live_update_wrapper,
             trigger=IntervalTrigger(hours=24),
             id="live_update",
             replace_existing=True,
         )
-        print("✅ Scheduled: live_update (every 24 hours)")
+        print(" Scheduled: live_update (every 24 hours)")
 
-    # Start the scheduler
     scheduler.start()
-    print("✅ Scheduler started successfully!")
+    print(" Scheduler started successfully!")
 
-    # Debugging: Print all scheduled jobs
     for job in scheduler.get_jobs():
-        print(f"📌 Job ID: {job.id}, Next run: {job.next_run_time}")
+        print(f" Job ID: {job.id}, Next run: {job.next_run_time}")
 
 def daily_task_wrapper():
     """Runs the daily task, ensures no double execution."""
-    print("🔄 Running daily task...")
+    print(" Running daily task...")
 
-    # Run live update task and schedule minute tasks if needed
     game_dict, game_time = live_update()
     print(game_dict, game_time, " jj")
     if game_dict and game_time:
-        print(f"📢 Game scheduled today at {game_time}")
+        print(f" Game scheduled today at {game_time}")
         schedule_minute_task(game_dict, game_time)
 
 def live_update_wrapper():
     """Wrapper function for scheduled live updates."""
-    print("🔄 Running scheduled live update...")
+    print(" Running scheduled live update...")
     game_dict, game_time = live_update()
     if game_dict and game_time:
         schedule_minute_task(game_dict, game_time)
 
 def schedule_minute_task(game_dict, game_time):
     """Schedules a task that updates player status every 3 minutes for 8 hours."""
-    print(f"⏳ Scheduling minute-based updates starting at {game_time}...")
+    print(f" Scheduling minute-based updates starting at {game_time}...")
 
     end_time = game_time + timedelta(hours=8)
 
@@ -61,14 +56,14 @@ def schedule_minute_task(game_dict, game_time):
             update_player_status1,
             trigger=IntervalTrigger(minutes=60, start_date=game_time, end_date=end_time),
             id="minute_task",
-            args=[game_dict],  # Pass necessary arguments
+            args=[game_dict],
             replace_existing=True,
-            max_instances=1,  # Prevent overlapping jobs
+            max_instances=1,
         )
-        print("✅ Scheduled: minute_task (every 3 minutes for 8 hours)")
+        print(" Scheduled: minute_task (every 3 minutes for 8 hours)")
 
 def stop_minute_task():
     """Stops the minute-based updates."""
     if scheduler.get_job("minute_task"):
         scheduler.remove_job("minute_task")
-        print("🛑 Stopped minute task after 8 hours.")
+        print(" Stopped minute task after 8 hours.")

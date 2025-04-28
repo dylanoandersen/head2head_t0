@@ -2,18 +2,10 @@ from django.db import models
 from django.contrib.auth.models import User
 import uuid
 
-
-
-# Create your models here.
-
-
-
-
-
 class Notification(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
     message = models.TextField()
-    link = models.URLField(null=True, blank=True)  # Optional link for the notification
+    link = models.URLField(null=True, blank=True)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -25,7 +17,7 @@ class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     date_of_birth = models.DateField(null=True, blank=True)
     profile_picture = models.ImageField(upload_to='profile_pictures/', null=True, blank=True)
-    currency = models.CharField(max_length=10, default=50.00)  # Default currency
+    currency = models.CharField(max_length=10, default=50.00)
 
     def __str__(self):
         return self.user.username
@@ -36,16 +28,16 @@ class League(models.Model):
     draft_date = models.DateTimeField()
     time_per_pick = models.IntegerField(default=60)
     positional_betting = models.BooleanField(default=False)
-    max_capacity = models.IntegerField(default=10)  # Default max number of users
-    private = models.BooleanField(default=False)  # True = Private, False = Public
-    join_code = models.CharField(max_length=6, unique=True, blank=True, null=True)  # Code for private leagues
-    users = models.ManyToManyField(User, related_name="joined_leagues", blank=True)  # Users in the league
-    draftStarted = models.BooleanField(default=False)  # Add this line
-    draftComplete = models.BooleanField(default=False)  # New field
+    max_capacity = models.IntegerField(default=10)
+    private = models.BooleanField(default=False)
+    join_code = models.CharField(max_length=6, unique=True, blank=True, null=True)
+    users = models.ManyToManyField(User, related_name="joined_leagues", blank=True)
+    draftStarted = models.BooleanField(default=False)
+    draftComplete = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
         if self.private and not self.join_code:
-            self.join_code = str(uuid.uuid4())[:10]  # Generate a random 10-character code for private leagues
+            self.join_code = str(uuid.uuid4())[:10]
         super().save(*args, **kwargs)
 
         if self.owner not in self.users.all():
@@ -79,7 +71,7 @@ class Matchup(models.Model):
     
     team1score = models.DecimalField(max_digits=5, decimal_places=2)
     team2score = models.DecimalField(max_digits=5, decimal_places=2)
-    position = models.CharField(max_length=50, null=True, blank=True)  # Randomized position for betting
+    position = models.CharField(max_length=50, null=True, blank=True)
 
 
 
@@ -115,34 +107,29 @@ class Team(models.Model):
 
 class Draft(models.Model):
     league = models.OneToOneField(League, on_delete=models.CASCADE)
-    current_pick = models.IntegerField(default=0)  # Track the current pick index
-    draft_order = models.JSONField()  # List of user IDs in draft order
-    picks = models.JSONField(default=list)  # List of picks made
+    current_pick = models.IntegerField(default=0)
+    draft_order = models.JSONField()
+    picks = models.JSONField(default=list)
 
     def get_next_pick(self):
-        # Determine the next user in the snake draft order
         total_users = len(self.draft_order)
         round_number = self.current_pick // total_users
         index_in_round = self.current_pick % total_users
 
-        # Reverse the order every other round for the snake pattern
         if round_number % 2 == 1:
             index_in_round = total_users - 1 - index_in_round
 
         return self.draft_order[index_in_round]
 
-
-
 class Week(models.Model):
     week = models.IntegerField(default=0)
-    updated_on_wednesday = models.BooleanField(default=False)  # New flag to prevent multiple updates
-
+    updated_on_wednesday = models.BooleanField(default=False)
 
 class Bet(models.Model):
-    matchup = models.ForeignKey(Matchup, on_delete=models.CASCADE, related_name="bets")  # Connect to Matchup by ID
-    league = models.ForeignKey(League, on_delete=models.CASCADE, related_name="bets")  # Connect to League by ID
-    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="bets")  # Connect to Team by ID
-    player_id = models.IntegerField()  # Store the player ID directly
+    matchup = models.ForeignKey(Matchup, on_delete=models.CASCADE, related_name="bets")
+    league = models.ForeignKey(League, on_delete=models.CASCADE, related_name="bets")
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="bets")
+    player_id = models.IntegerField()
     position = models.CharField(max_length=50)
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)

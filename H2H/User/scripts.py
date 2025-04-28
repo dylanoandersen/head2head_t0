@@ -1,6 +1,6 @@
 import random
 from django.db import models
-from User.models import Matchup  # Adjust the import path based on your project structure
+from User.models import Matchup
 
 # Define the list of positions
 POSITIONS = ["QB", "RB", "WR", "TE", "K", "DEF", "FLX"]
@@ -11,7 +11,6 @@ def assign_random_positions():
     and assigns a random position from the predefined list.
     """
     try:
-        # Fetch all Matchup entries with NULL position
         null_position_matchups = Matchup.objects.filter(position__isnull=True)
 
         if not null_position_matchups.exists():
@@ -20,7 +19,6 @@ def assign_random_positions():
 
         print(f"Found {null_position_matchups.count()} matchups with NULL positions.")
 
-        # Iterate through the matchups and assign random positions
         for matchup in null_position_matchups:
             random_position = random.choice(POSITIONS)
             matchup.position = random_position
@@ -32,6 +30,5 @@ def assign_random_positions():
     except Exception as e:
         print(f"An error occurred: {str(e)}")
 
-# Run the function
 if __name__ == "__main__":
     assign_random_positions()

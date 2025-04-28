@@ -17,7 +17,6 @@ class DraftConsumer(AsyncWebsocketConsumer):
         self.league_id = self.scope['url_route']['kwargs']['league_id']
         self.group_name = f'draft_{self.league_id}'
 
-        # Join the WebSocket group
         await self.channel_layer.group_add(
             self.group_name,
             self.channel_name
@@ -25,7 +24,6 @@ class DraftConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
     async def disconnect(self, close_code):
-        # Leave the WebSocket group
         await self.channel_layer.group_discard(
             self.group_name,
             self.channel_name
@@ -37,7 +35,7 @@ class DraftConsumer(AsyncWebsocketConsumer):
         message_type = data.get('message', {}).get('type')
 
         if message_type == 'make_pick':
-            print("Received make_pick message:", data)  # Debugging log
+            print("Received make_pick message:", data)
             await self.handle_pick(data['message'])
 
     #async def send_draft_update(self, event):
@@ -45,13 +43,13 @@ class DraftConsumer(AsyncWebsocketConsumer):
       #  await self.send(text_data=json.dumps(event["message"]))
 
     async def handle_pick(self, message):
-        from .models import Draft, Team, League  # Keep these imports
-        from all_players.models import Player  # Correctly import Player from all_players.models
+        from .models import Draft, Team, League
+        from all_players.models import Player
         from django.contrib.auth.models import User
 
         user_id = message['user_id']
         player_id = message['player_id']
-        position = message['position']  # Full position name like "Wide Receiver", "Tight End", etc.
+        position = message['position']
 
         try:
             draft = await sync_to_async(Draft.objects.get)(league__id=self.league_id)
@@ -59,32 +57,26 @@ class DraftConsumer(AsyncWebsocketConsumer):
             user = await sync_to_async(User.objects.get)(id=user_id)
             league = await sync_to_async(League.objects.get)(id=self.league_id)
         except (Draft.DoesNotExist, Player.DoesNotExist, User.DoesNotExist, League.DoesNotExist) as e:
-            print(f"Error: {e}")  # Debugging log
-            await self.check_draft_completion(league)  # Check draft completion even if an error occurs
+            print(f"Error: {e}")
+            await self.check_draft_completion(league)
             return
 
-        # Ensure it's the user's turn
         if draft.get_next_pick() != user_id:
-            print(f"Error: It's not the user's turn. Expected user {draft.get_next_pick()}, but got {user_id}.")  # Debugging log
-            await self.check_draft_completion(league)  # Check draft completion
+            print(f"Error: It's not the user's turn. Expected user {draft.get_next_pick()}, but got {user_id}.")
+            await self.check_draft_completion(league)
             return
 
-        # Ensure the player hasn't already been picked
         if any(pick['player_id'] == player_id for pick in draft.picks):
-            print(f"Error: Player {player_id} has already been picked.")  # Debugging log
-            await self.check_draft_completion(league)  # Check draft completion
+            print(f"Error: Player {player_id} has already been picked.")
+            await self.check_draft_completion(league)
             return
 
-        # Add the player to the user's team
         team, created = await sync_to_async(Team.objects.get_or_create)(author=user, league=league)
         print(f"Team before pick: QB={team.QB}, RB1={team.RB1}, RB2={team.RB2}, WR1={team.WR1}, WR2={team.WR2}, TE={team.TE}, FLX={team.FLX}, K={team.K}, Bench={team.BN1}, {team.BN2}, {team.BN3}, {team.BN4}, {team.BN5}, {team.BN6}")  # Debugging log
-        print(f"Attempting to add player {player.firstName} {player.lastName} (ID: {player_id}, Position: {position}) to the team.")  # Debugging log
+        print(f"Attempting to add player {player.firstName} {player.lastName} (ID: {player_id}, Position: {position}) to the team.")
 
-        # Helper function to check if a position is empty
         def is_position_empty(value):
             return value in [None, 'N/A', 'NULL']
-
-        # Assign the player to the appropriate position
         if position in ['Defense', 'DEF'] and is_position_empty(team.DEF):
             team.DEF = player.id
         elif position == 'Quarterback' and is_position_empty(team.QB):
@@ -109,16 +101,14 @@ class DraftConsumer(AsyncWebsocketConsumer):
                     setattr(team, bench_spot, player.id)
                     break
         else:
-            print(f"Error: Invalid position or already filled for position {position}.")  # Debugging log
+            print(f"Error: Invalid position or already filled for position {position}.")
             print(f"Team state: QB={team.QB}, RB1={team.RB1}, RB2={team.RB2}, WR1={team.WR1}, WR2={team.WR2}, TE={team.TE}, FLX={team.FLX}, K={team.K}, Bench={team.BN1}, {team.BN2}, {team.BN3}, {team.BN4}, {team.BN5}, {team.BN6}")  # Debugging log
-            await self.check_draft_completion(league)  # Check draft completion
+            await self.check_draft_completion(league)
             return
 
-        # Save the team asynchronously
         await sync_to_async(team.save)()
         print(f"Team after pick: QB={team.QB}, RB1={team.RB1}, RB2={team.RB2}, WR1={team.WR1}, WR2={team.WR2}, TE={team.TE}, FLX={team.FLX}, K={team.K}, DEF={team.DEF}, Bench={team.BN1}, {team.BN2}, {team.BN3}, {team.BN4}, {team.BN5}, {team.BN6}")  # Debugging log
 
-        # Add the pick to the draft
         draft.picks.append({'user_id': user_id, 'player_id': player_id, 'position': position})
         draft.current_pick += 1
         await sync_to_async(draft.save)()
@@ -142,9 +132,8 @@ class DraftConsumer(AsyncWebsocketConsumer):
         }
 
 
-        print(f"Next user ID: {draft.get_next_pick()}")  # Debugging log
+        print(f"Next user ID: {draft.get_next_pick()}")
 
-        # Broadcast the pick to all users
         await self.channel_layer.group_send(
             self.group_name,
             {
@@ -156,13 +145,12 @@ class DraftConsumer(AsyncWebsocketConsumer):
                     'position': position,
                     'player_name': f"{player.firstName} {player.lastName}",
                     'next_user_id': draft.get_next_pick(),
-                    'updated_positions': updated_positions,  # Include updated positions
+                    'updated_positions': updated_positions,
 
                 }
             }
         )
 
-        # Check if the draft is complete
         await self.check_draft_completion(league)
 
     async def check_draft_completion(self, league):
@@ -186,10 +174,8 @@ class DraftConsumer(AsyncWebsocketConsumer):
             league.draftComplete = True
             await sync_to_async(league.save)()
 
-            # Generate matchups if the draft is complete
             await sync_to_async(matchUp_creation)(league.id)
 
-            # Notify all users that the draft is complete
             await self.channel_layer.group_send(
                 self.group_name,
                 {
@@ -200,8 +186,7 @@ class DraftConsumer(AsyncWebsocketConsumer):
 
 
     async def draft_message(self, event):
-        # Send the message to WebSocket
-        print("Broadcasting draft message:", event['message'])  # Debugging log
+        print("Broadcasting draft message:", event['message'])
         await self.send(text_data=json.dumps({
             'message': event['message']
         }))
@@ -221,9 +206,8 @@ def matchUp_creation(lid):
     username = [user.username for user in users]
     print(username)
     if len(username) % 2 != 0:
-        username.append(None)  # None represents a bye
+        username.append(None)
 
-    # Generate all unique unordered matchups
     all_matchups = list(itertools.combinations(username, 2))
     random.shuffle(all_matchups)
 
@@ -237,7 +221,7 @@ def matchUp_creation(lid):
         players_used = set()
 
         for p1, p2 in all_matchups:
-            match = tuple(sorted((p1, p2)))  # canonical form for unordered
+            match = tuple(sorted((p1, p2)))
 
             if match in used_matchups:
                 continue
@@ -249,22 +233,19 @@ def matchUp_creation(lid):
             players_used.update([p for p in (p1,p2) if p is not None])
 
             if len(current_round) == len(username) // 2:
-                break  # round is full
+                break 
 
         if current_round:
             rounds.append(current_round)
 
-        # If all matchups are exhausted, reshuffle and start reusing
         if len(used_matchups) == len(all_matchups):
             used_matchups = set()
             random.shuffle(all_matchups)
 
-    # Save matchups to DB
     print(rounds)
     for week_num, week in enumerate(rounds, 1):
         for team1_id, team2_id in week:
             print('team1: ',team1_id,'team2: ', team2_id)
-            # Handle bye matchups
             if team1_id is None or team2_id is None:
                 real_team_id = team1_id or team2_id
                 real_team = (User.objects.get(id=real_team_id))
@@ -275,13 +256,12 @@ def matchUp_creation(lid):
                     league=league,
                     week=week_num,
                     team1=real_team,
-                    team2=None,  # or a special ByeUser if your model requires it
+                    team2=None,
                     defaults={
                         'team1score': 0,
                         'team2score': 0,
-                        'position': random.choice(["QB", "RB", "WR", "TE", "K"])  # Assign random position
+                        'position': random.choice(["QB", "RB", "WR", "TE", "K"])
 
-                        # maybe include 'is_bye': True if you track it
                     }
                 )
             else:
@@ -296,7 +276,7 @@ def matchUp_creation(lid):
                     defaults={
                         'team1score': 0,
                         'team2score': 0,
-                        'position': random.choice(["QB", "RB", "WR", "TE", "K"])  # Assign random position
+                        'position': random.choice(["QB", "RB", "WR", "TE", "K"])
 
                     }
                 )

@@ -44,16 +44,12 @@ logger = logging.getLogger(__name__)
 @permission_classes([IsAuthenticated])
 def get_users_and_teams(request, league_id):
     try:
-        # Fetch the league
         league = League.objects.get(id=league_id)
 
-        # Fetch all users in the league
         users = league.users.all()
 
-        # Prepare the response data
         data = []
         for user in users:
-            # Try to fetch the user's team in the league
             try:
                 team = Team.objects.get(league=league, author=user)
                 team_data = {
@@ -81,7 +77,6 @@ def get_users_and_teams(request, league_id):
             except Team.DoesNotExist:
                 team_data = None
 
-            # Add user and team data to the response
             data.append({
                 "user_id": user.id,
                 "username": user.username,
@@ -100,28 +95,24 @@ def get_users_and_teams(request, league_id):
 @permission_classes([IsAuthenticated])
 def get_trade_requests(request, league_id):
     try:
-        # Fetch the league and the user's team
         league = League.objects.get(id=league_id)
         user_team = Team.objects.get(league=league, author=request.user)
 
-        # Fetch trade requests for the user's team
         trade_requests = TradeRequest.objects.filter(receiver_team=user_team)
 
-        # Collect all player IDs from sender and receiver players
         player_ids = set()
         for tr in trade_requests:
             for value in tr.sender_players.values():
-                if isinstance(value, list):  # Flatten lists
+                if isinstance(value, list):
                     player_ids.update(value)
                 else:
                     player_ids.add(value)
             for value in tr.receiver_players.values():
-                if isinstance(value, list):  # Flatten lists
+                if isinstance(value, list):
                     player_ids.update(value)
                 else:
                     player_ids.add(value)
 
-        # Fetch player details from the Player model
         players = Player.objects.filter(id__in=player_ids)
         player_map = {
             str(player.id): {
@@ -131,7 +122,6 @@ def get_trade_requests(request, league_id):
             for player in players
         }
 
-        # Build the trade requests response
         trade_requests_data = [
             {
                 "id": tr.id,
@@ -487,10 +477,8 @@ def get_matchup_and_team(request, league_id, matchup_id):
 @permission_classes([IsAuthenticated])
 def get_available_players_for_betting(request, matchup_id):
     try:
-        # Fetch the matchup
         matchup = Matchup.objects.get(id=matchup_id)
 
-        # Fetch the user's team and the opponent's team
         user_team = Team.objects.get(league=matchup.league, author=request.user)
         opponent_team = (
             Team.objects.get(league=matchup.league, author_id=matchup.team1_id)
@@ -498,7 +486,6 @@ def get_available_players_for_betting(request, matchup_id):
             else Team.objects.get(league=matchup.league, author_id=matchup.team2_id)
         )
 
-        # Map positions to relevant fields in the Team model
         position_map = {
             "QB": ["QB"],
             "RB": ["RB1", "RB2"],
@@ -509,10 +496,8 @@ def get_available_players_for_betting(request, matchup_id):
             "DEF": ["DEF"],
         }
 
-        # Get the relevant fields for the matchup position
         relevant_fields = position_map.get(matchup.position, [])
 
-        # Fetch players for the user's team
         user_players = []
         for pos in relevant_fields:
             player_id = getattr(user_team, pos, None)
@@ -521,7 +506,7 @@ def get_available_players_for_betting(request, matchup_id):
                     player = Player.objects.get(id=player_id)
                     user_players.append({
                         "id": player.id,
-                        "name": f"{player.firstName} {player.lastName}",  # Fix here
+                        "name": f"{player.firstName} {player.lastName}", 
                         "position": pos,
                     })
                 except Player.DoesNotExist:
@@ -536,7 +521,7 @@ def get_available_players_for_betting(request, matchup_id):
                     player = Player.objects.get(id=player_id)
                     opponent_players.append({
                         "id": player.id,
-                        "name": f"{player.firstName} {player.lastName}",  # Fix here
+                        "name": f"{player.firstName} {player.lastName}",
                         "position": pos,
                     })
                 except Player.DoesNotExist:
@@ -552,19 +537,17 @@ def get_available_players_for_betting(request, matchup_id):
     except Team.DoesNotExist:
         return Response({"error": "Team not found."}, status=status.HTTP_404_NOT_FOUND)
     except Exception as e:
-        print(f"[ERROR] {str(e)}")  # Add logging
+        print(f"[ERROR] {str(e)}")
         return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def place_bet(request, league_id, matchup_id):
     try:
-        # Fetch the matchup and validate the user
         matchup = Matchup.objects.get(id=matchup_id, league_id=league_id)
         if request.user.id not in [matchup.team1_id, matchup.team2_id]:
             return Response({"error": "Unauthorized access."}, status=status.HTTP_403_FORBIDDEN)
 
-        # Fetch the user's team
         team = Team.objects.get(league_id=league_id, author=request.user)
         player_id = request.data.get("player_id")
         amount = request.data.get("amount")
@@ -572,20 +555,16 @@ def place_bet(request, league_id, matchup_id):
         if not player_id or not amount:
             return Response({"error": "Missing required fields."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validate player position
         player_position = request.data.get("position")
         if player_position != matchup.position:
             return Response({"error": f"Player position must match the weekly position: {matchup.position}."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Ensure the user has enough currency
         if Decimal(team.author.profile.currency) < Decimal(amount):
             return Response({"error": "Insufficient currency."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Ensure the user hasn't already placed a bet
         if Bet.objects.filter(matchup=matchup, team=team).exists():
             return Response({"error": "You have already placed a bet for this matchup."}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Deduct currency and create the bet
         team.author.profile.currency = str(Decimal(team.author.profile.currency) - Decimal(amount))
         team.author.profile.save()
 
@@ -612,7 +591,7 @@ def get_bets_for_matchup(request, matchup_id):
     try:
         matchup = Matchup.objects.get(id=matchup_id)
         bets = Bet.objects.filter(matchup=matchup)
-        serializer = BetSerializer(bets, many=True)  # Ensure you have a `BetSerializer`
+        serializer = BetSerializer(bets, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
     except Matchup.DoesNotExist:
         return Response({"error": "Matchup not found."}, status=status.HTTP_404_NOT_FOUND)
@@ -690,10 +669,8 @@ def get_eligible_leagues(request, user_id):
     except User.DoesNotExist:
         return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    # Fetch leagues owned by the logged-in user
     owned_leagues = request.user.owned_leagues.filter(draftStarted=False)
 
-    # Exclude leagues where the searched user is already a member
     eligible_leagues = owned_leagues.exclude(users=searched_user)
 
     serializer = LeagueSerializer(eligible_leagues, many=True)
@@ -774,18 +751,15 @@ def invite_user_to_league(request, league_id, user_id):
     except User.DoesNotExist:
         return Response({"error": "User not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    # Check if an invite already exists
     if Invite.objects.filter(league=league, invited_user=user).exists():
         return Response({"error": "This user has already been invited to this league."}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Create an invite record
     Invite.objects.create(league=league, invited_user=user, invited_by=request.user)
 
-    # Create a notification for the invited user
     Notification.objects.create(
         user=user,
         message=f"You have been invited to join the league '{league.name}'.",
-        link=f"/api/leagues/{league_id}/invite-response/"  # Add a valid link
+        link=f"/api/leagues/{league_id}/invite-response/"
     )
 
     return Response({"success": f"User {user.username} has been invited to the league."}, status=status.HTTP_200_OK)
@@ -798,7 +772,7 @@ def search_users(request):
     if not query:
         return Response({"error": "Username query is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-    users = User.objects.filter(username__icontains=query).exclude(id=request.user.id)  # Exclude the logged-in user
+    users = User.objects.filter(username__icontains=query).exclude(id=request.user.id)
     serializer = UserSerializer(users, many=True)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -824,14 +798,14 @@ def notify_draft_start(league):
                 message=f"The draft for {league.name} has started!",
                 link=f"/draft/{league.id}/"
             )
-            print(f"Notification created for user {user.username}: The draft for {league.name} has started!")  # Debugging log
+            print(f"Notification created for user {user.username}: The draft for {league.name} has started!")
         except Exception as e:
             logger.error(f"Failed to create notification for user {user.username}: {e}")
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_notifications(request):
-    limit = request.query_params.get('limit', None)  # Optional query parameter
+    limit = request.query_params.get('limit', None)
     notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
     if limit:
         notifications = notifications[:int(limit)]
@@ -1274,19 +1248,15 @@ def userTeam(request, LID):
 def TradeInfo(request, LID):
     if request.method == 'GET':
         try:
-            # Fetch the league by ID
             league = League.objects.get(id=LID)
 
-            # Fetch all teams associated with the league
             teams = Team.objects.filter(league=league)
 
-            # Check if there are teams in the league
             if not teams.exists():
                 return Response({"error": "No teams found in this league."}, status=status.HTTP_404_NOT_FOUND)
         except League.DoesNotExist:
             return Response({"error": f"League with ID {LID} does not exist."}, status=status.HTTP_404_NOT_FOUND)
 
-        # Serialize the teams and return their data
         serializer = TeamSerializer(teams, many=True)
         return Response({
             "league": league.name,
@@ -1452,17 +1422,16 @@ def join_public_league(request, league_id):
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def search_league(request):
-    name_query = request.GET.get("name", "").strip()  # Search by name
-    is_private = request.GET.get("private", None)  # Filter by private/public
-    positional_betting = request.GET.get("positional_betting", None)  # Filter by positional betting
-    draft_status = request.GET.get("draft_status", None)  # Filter by draft status
-    draft_date = request.GET.get("draft_date", None)  # Filter by draft date (before/after)
-    page = int(request.GET.get("page", 1))  # Pagination
-    leagues_per_page = 10  # Leagues per page
+    name_query = request.GET.get("name", "").strip() 
+    is_private = request.GET.get("private", None)
+    positional_betting = request.GET.get("positional_betting", None)
+    draft_status = request.GET.get("draft_status", None)
+    draft_date = request.GET.get("draft_date", None)
+    page = int(request.GET.get("page", 1))
+    leagues_per_page = 10
 
     leagues = League.objects.all()
 
-    # Debugging: Print initial query
     print(f"Initial leagues query: {leagues}")
 
     # Apply filters
@@ -1502,16 +1471,14 @@ def search_league(request):
     if draft_date:
         try:
             date_filter = datetime.strptime(draft_date, "%Y-%m-%d")
-            leagues = leagues.filter(draft_date__gte=date_filter)  # Filter leagues after the given date
+            leagues = leagues.filter(draft_date__gte=date_filter)
             print(f"Filtered by draft_date: {draft_date}")
         except ValueError:
             print(f"Invalid draft_date format: {draft_date}")
             return JsonResponse({"error": "Invalid date format. Use YYYY-MM-DD."}, status=400)
-
-    # Debugging: Print final query
+        
     print(f"Final leagues query: {leagues}")
 
-    # Paginate results
     paginator = Paginator(leagues, leagues_per_page)
     try:
         paginated_leagues = paginator.get_page(page)

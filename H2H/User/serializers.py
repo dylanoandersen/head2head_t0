@@ -22,7 +22,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         fields = ['date_of_birth', 'profile_picture', 'currency']
 
 class UserSerializer(serializers.ModelSerializer):
-    profile = ProfileSerializer(read_only=True)  # Add the profile field
+    profile = ProfileSerializer(read_only=True)
     class Meta:
         model = User
         fields = ['id', 'username', 'password', 'email', 'first_name', 'last_name', 'profile']
@@ -58,7 +58,7 @@ class PlayerSerializer(serializers.ModelSerializer):
     def get_proj_fantasy(self, obj):
         return getattr(obj, 'proj_fantasy', None)
     def get_total_fantasy_points(self, obj):
-        return getattr(obj, 'total_fantasy_points', None)  # Get dynamically attached field
+        return getattr(obj, 'total_fantasy_points', None)
     def get_pass_yards(self, obj):
         return getattr(obj, 'pass_yards', None)
     def get_pass_tds(self, obj):
@@ -78,9 +78,9 @@ class PlayerSerializer(serializers.ModelSerializer):
 
 
 class LeagueSerializer(serializers.ModelSerializer):
-    owner = UserSerializer(read_only=True)  # Nested owner info
+    owner = UserSerializer(read_only=True)
     teams = serializers.PrimaryKeyRelatedField(queryset=Team.objects.all(), many=True, required=False)
-    users = UserSerializer(many=True, read_only=True)  # Nested users info
+    users = UserSerializer(many=True, read_only=True)
 
     class Meta:
         model = League
@@ -90,7 +90,7 @@ class LeagueSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         request = self.context.get('request', None)
         if request and request.user:
-            validated_data['owner'] = request.user  # Set the owner to the logged-in user
+            validated_data['owner'] = request.user
 
         league = League.objects.create(**validated_data)
         return league

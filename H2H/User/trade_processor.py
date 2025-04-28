@@ -5,13 +5,11 @@ from rest_framework.response import Response
 from django.db import transaction
 
 def process_trade(user_team, opponent_team, user_players, opponent_players, currency_offered, currency_requested):
-    # Validate currency
     if user_team.author.profile.currency < currency_offered:
         raise ValueError("You do not have enough currency to offer.")
     if opponent_team.author.profile.currency < currency_requested:
         raise ValueError("Opponent does not have enough currency to fulfill the request.")
 
-    # Define valid interchangeable positions
     valid_trades = {
         "WR1": ["WR2"],
         "WR2": ["WR1"],
@@ -25,38 +23,31 @@ def process_trade(user_team, opponent_team, user_players, opponent_players, curr
         "BN6": ["BN1", "BN2", "BN3", "BN4", "BN5"],
     }
 
-    # Process trade in a transaction
     with transaction.atomic():
-        # Swap players
         for position, user_player_id in user_players.items():
             opponent_player_id = opponent_players.get(position)
 
-            # Handle interchangeable positions
             if not opponent_player_id:
                 for interchangeable_position in valid_trades.get(position, []):
                     if interchangeable_position in opponent_players:
                         opponent_player_id = opponent_players[interchangeable_position]
-                        # Update the position to reflect the correct field
+
                         position = interchangeable_position
                         break
 
             if not opponent_player_id:
                 raise ValueError(f"Invalid trade. No matching player for position {position}.")
 
-            # Use temporary variables to hold the values before swapping
             temp_user_player_id = user_player_id
             temp_opponent_player_id = opponent_player_id
 
-            # Swap the players between the teams
             setattr(user_team, position, temp_opponent_player_id)
             setattr(opponent_team, position, temp_user_player_id)
 
-        # Update currency
         user_team.author.profile.currency -= currency_offered
         opponent_team.author.profile.currency -= currency_requested
         user_team.author.profile.save()
         opponent_team.author.profile.save()
 
-        # Save the updated teams
         user_team.save()
         opponent_team.save()

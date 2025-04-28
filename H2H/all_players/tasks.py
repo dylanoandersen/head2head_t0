@@ -239,13 +239,11 @@ def update_player_status1(game_dict):
     print('its doing something')
 
     for ids in game_dict:
-        # Parse game data from the API
         response_data = game_details(ids)
 
         drives = response_data.get('drives', {})
         plays_list = drives.get('current', []) if 'current' in drives else drives.get('previous', [])
 
-        # Extract play-by-play details
         home_score, away_score, text = 0, 0, "No plays available"
         try:
             plays = plays_list.get("plays", [])
@@ -255,7 +253,7 @@ def update_player_status1(game_dict):
 
                 for item in plays_list:  
                     if isinstance(item, dict) and "plays" in item:
-                        last_plays = item["plays"]  # Keep updating with the latest "plays" list
+                        last_plays = item["plays"] 
 
                 plays = last_plays if last_plays is not None else []
             else:
@@ -269,7 +267,6 @@ def update_player_status1(game_dict):
             text = last_play.get('text', 'N/A')
         
         week = response_data.get('header', {}).get('week', 0)
-        # Update or create Game object with live data
         print('updating game')
         Game.objects.update_or_create(
             id=ids,
