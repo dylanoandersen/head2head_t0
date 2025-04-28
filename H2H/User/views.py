@@ -7,7 +7,7 @@ from django.shortcuts import render
 from datetime import datetime;
 from django.db import models  # Import models to fix "models is not defined"
 from decimal import Decimal
-
+import re
 from django.views.decorators.csrf import csrf_exempt
 
 from all_players.models import Player, Player_Stats
@@ -211,11 +211,22 @@ def respond_to_trade_request(request, trade_request_id):
                 "K": ["K"],
                 "DEF": ["DEF"],
                 "FLX": ["FLX"],
-         }
-
+            }
 
             if sender_position != receiver_position and receiver_position not in valid_trades.get(sender_position, []):
                 return Response({"error": "Players must be of the same position or valid interchangeable positions to trade."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Verify player ownership
+            sender_team = trade_request.sender_team
+            receiver_team = trade_request.receiver_team
+            sender_player_id = list(trade_request.sender_players.values())[0]
+            receiver_player_id = list(trade_request.receiver_players.values())[0]
+
+            if not any(getattr(sender_team, field) == sender_player_id for field in sender_team._meta.fields if field.name.startswith("QB") or field.name.startswith("RB") or field.name.startswith("WR") or field.name.startswith("BN")):
+                return Response({"error": "Sender no longer owns the player being traded."}, status=status.HTTP_400_BAD_REQUEST)
+
+            if not any(getattr(receiver_team, field) == receiver_player_id for field in receiver_team._meta.fields if field.name.startswith("QB") or field.name.startswith("RB") or field.name.startswith("WR") or field.name.startswith("BN")):
+                return Response({"error": "Receiver no longer owns the player being traded."}, status=status.HTTP_400_BAD_REQUEST)
 
             # Execute the trade
             process_trade(
@@ -232,7 +243,7 @@ def respond_to_trade_request(request, trade_request_id):
             # Notify the sender
             Notification.objects.create(
                 user=trade_request.sender_team.author,
-                message=f"Your trade request to {trade_request.receiver_team.title} has been accepted.",
+                message="Your trade request has been accepted.",
             )
 
         elif response == "reject":
@@ -242,7 +253,7 @@ def respond_to_trade_request(request, trade_request_id):
             # Notify the sender
             Notification.objects.create(
                 user=trade_request.sender_team.author,
-                message=f"Your trade request to {trade_request.receiver_team.title} has been rejected.",
+                message="Your trade request has been rejected.",
             )
 
         return Response({"success": f"Trade request {response}ed successfully."}, status=status.HTTP_200_OK)
@@ -322,7 +333,7 @@ def create_trade_request(request, league_id):
         # Notify the receiver
         Notification.objects.create(
             user=receiver_team.author,
-            message=f"You have received a trade request from {sender_team.title}.",
+            message="You have received a trade request.",
             link=f"/leagues/{league_id}/trade-requests/"
         )
 
@@ -884,47 +895,24 @@ def delete_league(request, league_id):
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
 def update_league_settings(request, league_id):
-    logger.info("Received request to update league settings for league_id: %s", league_id)
-    logger.info("Request data: %s", request.data)
-
     try:
         league = League.objects.get(id=league_id, owner=request.user)
     except League.DoesNotExist:
-        logger.error("League not found or user is not the owner.")
         return Response({'error': 'League not found or you are not the owner.'}, status=403)
 
     data = request.data
 
-    # Validate draft_date
-    if 'draft_date' in data:
-        draft_date = data['draft_date']
-        try:
-            parsed_date = datetime.strptime(draft_date, "%Y-%m-%dT%H:%M:%S")
-            if parsed_date < datetime.now():
-                logger.error("Draft date must be in the future. Received: %s", draft_date)
-                return Response({'error': 'Draft date must be in the future.'}, status=400)
-        except ValueError as e:
-            logger.error("Invalid draft_date format: %s", draft_date)
-            return Response({'error': 'Invalid draft date format. Use ISO 8601 format.'}, status=400)
-
-    # Validate join_code uniqueness
-    if 'join_code' in data and League.objects.filter(join_code=data['join_code']).exclude(id=league_id).exists():
-        logger.error("Join code already exists: %s", data['join_code'])
-        return Response({'error': 'Join code already exists.'}, status=400)
+    # Validate join code if the league is private
+    if data.get('private') and ('join_code' not in data or not re.match(r'^[a-zA-Z0-9]{1,6}$', data['join_code'])):
+        return Response({'error': 'Join code must be 1-6 alphanumeric characters.'}, status=400)
 
     # Update fields
-    for field in ['draft_date', 'time_per_pick', 'positional_betting', 'max_capacity', 'private', 'join_code']:
+    for field in ['max_capacity', 'private', 'join_code']:
         if field in data:
-            logger.info("Updating field %s to %s", field, data[field])
             setattr(league, field, data[field])
 
-    try:
-        league.save()
-        logger.info("League settings updated successfully for league_id: %s", league_id)
-        return Response({'success': 'League settings updated successfully.'})
-    except Exception as e:
-        logger.error("Error saving league settings: %s", str(e))
-        return Response({'error': 'Failed to update league settings.'}, status=500)
+    league.save()
+    return Response({'success': 'League settings updated successfully.'})
 
 
 @api_view(['POST'])
